@@ -14,6 +14,7 @@ export function useMesLocations() {
 
 export interface CreateLocationInput {
   materiel_id: number;
+  quantite?: number;
   date_debut: string;
   date_fin: string;
   message?: string;
@@ -36,13 +37,31 @@ export function useAnnulerLocation() {
   });
 }
 
+export function useRequestProlongation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, date_fin }: { id: number; date_fin: string }) =>
+      api<Location>(`/locations/${id}/prolongation`, {
+        method: "POST",
+        body: { date_fin },
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.mesLocations });
+      void qc.invalidateQueries({ queryKey: queryKeys.demandesAll });
+    },
+  });
+}
+
 /* ---------- Propriétaire ---------- */
 
-export function useDemandes(statut: Statut | undefined, page: number) {
+export function useDemandes(statut: Statut | undefined, page: number, materielId?: number) {
   return useQuery({
-    queryKey: queryKeys.demandes(statut, page),
+    queryKey: queryKeys.demandes(statut, page, materielId),
     queryFn: ({ signal }) =>
-      api<Paginated<Location>>("/proprietaire/demandes", { query: { statut, page }, signal }),
+      api<Paginated<Location>>("/proprietaire/demandes", {
+        query: { statut, page, materiel_id: materielId },
+        signal,
+      }),
     placeholderData: keepPreviousData,
   });
 }
@@ -63,6 +82,7 @@ function useOwnerAction<V>(fn: (v: V) => Promise<Location>) {
       void qc.invalidateQueries({ queryKey: queryKeys.stats });
       void qc.invalidateQueries({ queryKey: queryKeys.ownMateriels });
       void qc.invalidateQueries({ queryKey: queryKeys.materiels });
+      void qc.invalidateQueries({ queryKey: queryKeys.mesLocations });
     },
   });
 }
@@ -85,5 +105,17 @@ export function useRefuserLocation() {
 export function useTerminerLocation() {
   return useOwnerAction((id: number) =>
     api<Location>(`/proprietaire/locations/${id}/terminer`, { method: "PATCH" }),
+  );
+}
+
+export function useConfirmerProlongation() {
+  return useOwnerAction((id: number) =>
+    api<Location>(`/proprietaire/locations/${id}/prolongation/confirmer`, { method: "PATCH" }),
+  );
+}
+
+export function useRefuserProlongation() {
+  return useOwnerAction((id: number) =>
+    api<Location>(`/proprietaire/locations/${id}/prolongation/refuser`, { method: "PATCH" }),
   );
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Category;
 use App\Models\Materiel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,11 +20,10 @@ class MaterielFactory extends Factory
     public function definition(): array
     {
         return [
-            'proprietaire_id' => User::factory()->proprietaire(),
+            'user_id' => User::factory()->proprietaire(),
             'nom' => fake()->words(3, true),
-            'categorie' => fake()->word(),
+            'categorie_id' => Category::factory(),
             'description' => fake()->sentence(),
-            'photo' => null,
             'prix_journalier' => fake()->randomFloat(2, 1, 200),
             'etat' => fake()->randomElement(['neuf', 'bon', 'usé']),
             'disponible' => true,

@@ -30,9 +30,13 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'role' => User::ROLE_LOCATAIRE,
             'is_active' => true,
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->syncRoles([User::ROLE_LOCATAIRE]));
     }
 
     /**
@@ -47,8 +51,16 @@ class UserFactory extends Factory
 
     public function proprietaire(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'role' => User::ROLE_PROPRIETAIRE,
-        ]);
+        return $this->afterCreating(fn (User $user) => $user->syncRoles([User::ROLE_PROPRIETAIRE]));
+    }
+
+    public function admin(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->syncRoles([User::ROLE_ADMIN]));
+    }
+
+    public function superAdmin(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->syncRoles([User::ROLE_SUPER_ADMIN]));
     }
 }

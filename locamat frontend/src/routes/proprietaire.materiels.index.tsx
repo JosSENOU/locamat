@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Package, Pencil, Plus, Trash2 } from "lucide-react";
+import { History, Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useDeleteMateriel, useOwnMateriels, useToggleDisponibilite } from "@/hooks/use-materiels";
 import { errorMessage } from "@/lib/api";
@@ -31,7 +31,12 @@ function MesMateriels() {
     toggle.mutate(
       { id: m.id, disponible: v },
       {
-        onSuccess: () => toast.success(v ? `« ${m.nom} » est visible dans le catalogue.` : `« ${m.nom} » est masqué du catalogue.`),
+        onSuccess: () =>
+          toast.success(
+            v
+              ? `« ${m.nom} » est visible dans le catalogue.`
+              : `« ${m.nom} » est masqué du catalogue.`,
+          ),
         onError: (e) => toast.error(errorMessage(e)),
       },
     );
@@ -55,10 +60,20 @@ function MesMateriels() {
       <PageHeader
         title="Mes matériels"
         description="Le prix, l'état et la visibilité de chaque équipement."
-        actions={<Button asChild><Link to="/proprietaire/materiels/nouveau"><Plus aria-hidden /> Ajouter</Link></Button>}
+        actions={
+          <Button asChild>
+            <Link to="/proprietaire/materiels/nouveau">
+              <Plus aria-hidden /> Ajouter
+            </Link>
+          </Button>
+        }
       />
       {isPending ? (
-        <div className="space-y-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
       ) : isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : data.length === 0 ? (
@@ -66,34 +81,85 @@ function MesMateriels() {
           icon={Package}
           title="Aucun matériel publié"
           description="Publiez votre premier équipement pour commencer à recevoir des demandes."
-          action={<Button asChild><Link to="/proprietaire/materiels/nouveau"><Plus aria-hidden /> Ajouter un matériel</Link></Button>}
+          action={
+            <Button asChild>
+              <Link to="/proprietaire/materiels/nouveau">
+                <Plus aria-hidden /> Ajouter un matériel
+              </Link>
+            </Button>
+          }
         />
       ) : (
         <ul className="space-y-3">
           {data.map((m) => (
-            <li key={m.id} className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-card sm:flex-row sm:items-center">
+            <li
+              key={m.id}
+              className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-card sm:flex-row sm:items-center"
+            >
               <div className="flex flex-1 items-center gap-4">
-                <MaterielPhoto categorie={m.categorie} photo={m.photo} alt={m.nom} className="size-20 shrink-0 rounded-lg" iconClassName="size-6" />
+                <MaterielPhoto
+                  categorie={m.categorie}
+                  photo={m.photo}
+                  alt={m.nom}
+                  className="size-20 shrink-0 rounded-lg"
+                  iconClassName="size-6"
+                />
                 <div className="min-w-0 space-y-1">
-                  <Link to="/materiels/$id" params={{ id: String(m.id) }} className="block truncate font-bold hover:text-primary">{m.nom}</Link>
+                  <Link
+                    to="/materiels/$id"
+                    params={{ id: String(m.id) }}
+                    className="block truncate font-bold hover:text-primary"
+                  >
+                    {m.nom}
+                  </Link>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-semibold text-primary">{m.categorie}</span>
                     <EtatBadge etat={m.etat} />
-                    <span>{m.locations_count ?? 0} location{(m.locations_count ?? 0) > 1 ? "s" : ""}</span>
+                    <span>
+                      {m.locations_count ?? 0} location{(m.locations_count ?? 0) > 1 ? "s" : ""}{" "}
+                      effectuée{(m.locations_count ?? 0) > 1 ? "s" : ""}
+                      {(m.locations_confirmees_count ?? 0) > 0 &&
+                        ` · ${m.locations_confirmees_count} en cours`}
+                    </span>
+                    <Link
+                      to="/proprietaire/demandes"
+                      search={{ materiel_id: m.id }}
+                      className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                    >
+                      <History className="size-3.5" aria-hidden /> Historique
+                    </Link>
                   </div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {m.quantite_disponible ?? m.quantite} / {m.quantite} exemplaires disponibles
+                  </p>
                   <PriceTag value={m.prix_journalier} size="sm" />
                 </div>
               </div>
               <div className="flex items-center justify-between gap-4 border-t pt-3 sm:border-0 sm:pt-0">
                 <label className="flex items-center gap-2 text-sm font-medium">
-                  <Switch checked={m.disponible} onCheckedChange={(v) => onToggle(m, v)} aria-label={`Disponibilité de ${m.nom}`} />
+                  <Switch
+                    checked={m.disponible}
+                    onCheckedChange={(v) => onToggle(m, v)}
+                    aria-label={`Disponibilité de ${m.nom}`}
+                  />
                   {m.disponible ? "Disponible" : "Indisponible"}
                 </label>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="icon" asChild aria-label={`Modifier ${m.nom}`}>
-                    <Link to="/proprietaire/materiels/$id/modifier" params={{ id: String(m.id) }}><Pencil /></Link>
+                    <Link to="/proprietaire/materiels/$id/modifier" params={{ id: String(m.id) }}>
+                      <Pencil />
+                    </Link>
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive" aria-label={`Supprimer ${m.nom}`} onClick={() => { setDeleteError(null); setToDelete(m); }}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    aria-label={`Supprimer ${m.nom}`}
+                    onClick={() => {
+                      setDeleteError(null);
+                      setToDelete(m);
+                    }}
+                  >
                     <Trash2 />
                   </Button>
                 </div>
@@ -113,12 +179,24 @@ function MesMateriels() {
         onConfirm={confirmDelete}
       >
         {deleteError && toDelete && (
-          <div role="alert" className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+          <div
+            role="alert"
+            className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
+          >
             <p className="font-medium text-destructive">{deleteError}</p>
             {toDelete.disponible && (
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Vous pouvez plutôt le masquer du catalogue.</span>
-                <Button size="sm" variant="outline" onClick={() => { onToggle(toDelete, false); setToDelete(null); }}>
+                <span className="text-muted-foreground">
+                  Vous pouvez plutôt le masquer du catalogue.
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    onToggle(toDelete, false);
+                    setToDelete(null);
+                  }}
+                >
                   Rendre indisponible
                 </Button>
               </div>

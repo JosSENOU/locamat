@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    // Certains environnements définissent NODE_ENV=production, ce qui charge la build de React sans React.act.
+    env: { NODE_ENV: "test" },
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],

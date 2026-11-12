@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -118,17 +119,25 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // L'espace super-administrateur a sa propre page de connexion et sa propre navigation.
+  const isSuperAdminArea = useRouterState({
+    select: (state) => state.location.pathname.startsWith("/super-admin"),
+  });
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <div className="flex min-h-screen flex-col">
-          <Navbar />
-          <main className="flex-1">
-            <Outlet />
-          </main>
-          <Footer />
-        </div>
+        {isSuperAdminArea ? (
+          <Outlet />
+        ) : (
+          <div className="flex min-h-screen flex-col">
+            <Navbar />
+            <main className="flex-1">
+              <Outlet />
+            </main>
+            <Footer />
+          </div>
+        )}
       </AuthProvider>
       <Toaster richColors position="top-center" />
     </QueryClientProvider>

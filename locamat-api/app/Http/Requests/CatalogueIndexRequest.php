@@ -19,6 +19,7 @@ class CatalogueIndexRequest extends FormRequest
         return [
             'q' => ['sometimes', 'nullable', 'string', 'max:255'],
             'categorie' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'categorie_id' => ['sometimes', 'integer', 'exists:categories,id'],
             'prix_min' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'prix_max' => ['sometimes', 'nullable', 'numeric', 'min:0', 'gte:prix_min'],
             'page' => ['sometimes', 'integer', 'min:1'],

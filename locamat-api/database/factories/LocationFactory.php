@@ -21,10 +21,11 @@ class LocationFactory extends Factory
     {
         return [
             'materiel_id' => Materiel::factory(),
-            'locataire_id' => User::factory(),
+            'user_id' => User::factory(),
             'date_debut' => today()->addDay(),
             'date_fin' => today()->addDays(2),
             'nb_jours' => 2,
+            'quantite' => 1,
             'prix_total' => 100,
             'statut' => Location::STATUT_EN_ATTENTE,
             'message' => null,

@@ -2,25 +2,42 @@ import { useEffect, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import type { Role } from "@/types/api";
+import type { AccountRole } from "@/types/api";
 import { FullPageLoader } from "./FullPageLoader";
 import { Button } from "./ui/button";
-import { homeFor } from "@/lib/constants";
+import { homeFor, userHasRole } from "@/lib/constants";
 
-/** Client-side guard: redirects guests to /connexion and shows a 403 for other roles. */
-export function RequireRole({ roles, children }: { roles?: Role[]; children: ReactNode }) {
+/**
+ * Client-side guard: redirects guests to the login page and shows a 403 for other roles.
+ * `loginTo="super-admin"` sends guests to the dedicated super-administrator login page.
+ */
+export function RequireRole({
+  roles,
+  loginTo = "public",
+  children,
+}: {
+  roles?: AccountRole[];
+  loginTo?: "public" | "super-admin";
+  children: ReactNode;
+}) {
   const { user, status } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     if (status === "ready" && !user) {
+      if (loginTo === "super-admin") {
+        void navigate({ to: "/super-admin/connexion", replace: true });
+        return;
+      }
       void navigate({ to: "/connexion", search: { redirect: location.href }, replace: true });
     }
-  }, [status, user, navigate, location.href]);
+  }, [status, user, navigate, location.href, loginTo]);
 
   if (status !== "ready" || !user) return <FullPageLoader />;
-  if (roles && !roles.includes(user.role)) return <Forbidden home={homeFor(user.role)} />;
+  if (roles && !roles.some((role) => userHasRole(user, role))) {
+    return <Forbidden home={homeFor(user.role)} />;
+  }
   return <>{children}</>;
 }
 

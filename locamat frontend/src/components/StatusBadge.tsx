@@ -24,3 +24,18 @@ export function StatusBadge({ statut, className }: { statut: Statut; className?:
     </span>
   );
 }
+
+/** Shown next to the status when a confirmed rental is past its return date. */
+export function RetardBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive ring-1 ring-inset ring-destructive/30",
+        className,
+      )}
+    >
+      <span aria-hidden className="size-1.5 rounded-full bg-current" />
+      En retard
+    </span>
+  );
+}

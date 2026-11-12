@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { ApiError } from "@/lib/api";
 import { loginSchema, type LoginValues } from "@/lib/schemas";
 import { applyServerErrors } from "@/lib/form-errors";
 import { seo } from "@/lib/seo";
@@ -13,6 +14,7 @@ import { Field, fieldAria } from "@/components/FormField";
 import { PasswordInput } from "@/components/PasswordInput";
 import { LoadingButton } from "@/components/SubmitButton";
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/connexion")({
   validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
@@ -24,9 +26,13 @@ export const Route = createFileRoute("/connexion")({
 
 function Connexion() {
   const { redirect } = Route.useSearch();
+  const navigate = useNavigate();
   const { login, user } = useAuth();
   const after = useAfterAuth(redirect);
-  const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
+  const form = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
   const { errors, isSubmitting } = form.formState;
 
   useEffect(() => {
@@ -40,25 +46,62 @@ function Connexion() {
       toast.success(`Bonjour ${u.name} !`);
       after(u);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 423) {
+        void navigate({ to: "/compte-bloque", search: { email: v.email, redirect } });
+        return;
+      }
+      if (e instanceof ApiError && e.code === "email_not_verified") {
+        void navigate({ to: "/verification-email", search: { email: v.email, verified: false } });
+        return;
+      }
       applyServerErrors(e, form.setError, ["email", "password"]);
     }
   });
 
   return (
-    <AuthShell title="Bon retour parmi nous" subtitle="Connectez-vous pour suivre vos locations et vos demandes.">
+    <AuthShell
+      title="Bon retour parmi nous"
+      subtitle="Connectez-vous pour suivre vos locations et vos demandes."
+    >
       <form onSubmit={onSubmit} noValidate className="space-y-5">
         <Field id="email" label="Adresse e-mail" error={errors.email?.message}>
-          <Input type="email" autoComplete="email" {...fieldAria("email", errors.email?.message)} {...form.register("email")} />
+          <Input
+            type="email"
+            autoComplete="email"
+            {...fieldAria("email", errors.email?.message)}
+            {...form.register("email")}
+          />
         </Field>
         <Field id="password" label="Mot de passe" error={errors.password?.message}>
-          <PasswordInput autoComplete="current-password" {...fieldAria("password", errors.password?.message)} {...form.register("password")} />
+          <PasswordInput
+            autoComplete="current-password"
+            {...fieldAria("password", errors.password?.message)}
+            {...form.register("password")}
+          />
         </Field>
+        <p className="-mt-3 text-xs leading-relaxed text-muted-foreground">
+          Pour créer ou modifier un mot de passe : 8 caractères minimum, avec une majuscule, une
+          minuscule, un chiffre et un caractère spécial, sans espace. Les anciens mots de passe
+          restent acceptés à la connexion.
+        </p>
+        <div className="-mt-3 text-right">
+          <Link
+            to="/mot-de-passe-oublie"
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            Mot de passe oublié ?
+          </Link>
+        </div>
         <LoadingButton type="submit" size="lg" className="w-full" loading={isSubmitting}>
           Se connecter
         </LoadingButton>
         <p className="text-center text-sm text-muted-foreground">
           Pas encore de compte ?{" "}
-          <Link to="/inscription" search={{ redirect }} className="font-semibold text-primary hover:underline">
+          <Link
+            to="/inscription"
+            search={{ redirect }}
+            className="font-semibold text-primary hover:underline"
+          >
             Créer un compte
           </Link>
         </p>

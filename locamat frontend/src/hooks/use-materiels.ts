@@ -1,7 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { CatalogueParams, Materiel, Paginated, Periode } from "@/types/api";
+import type { Category, CatalogueParams, Materiel, Paginated, Periode } from "@/types/api";
+
+export function useCategories() {
+  return useQuery({
+    queryKey: queryKeys.categories,
+    queryFn: ({ signal }) => api<Category[]>("/categories", { signal }),
+  });
+}
 
 export function useCatalogue(params: CatalogueParams) {
   return useQuery({

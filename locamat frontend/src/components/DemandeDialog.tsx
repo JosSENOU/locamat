@@ -7,9 +7,17 @@ import {
   useTerminerLocation,
 } from "@/hooks/use-locations";
 import { errorMessage } from "@/lib/api";
-import { formatDate, formatFCFA, formatRange, whatsappLink } from "@/lib/format";
+import {
+  formatDate,
+  formatDateTime,
+  formatFCFA,
+  formatRange,
+  isDatePassee,
+  whatsappLink,
+} from "@/lib/format";
 import type { Location } from "@/types/api";
-import { StatusBadge } from "./StatusBadge";
+import { RetardBadge, StatusBadge } from "./StatusBadge";
+import { HistoriqueLocation } from "./HistoriqueLocation";
 import { MaterielPhoto } from "./MaterielPhoto";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -20,7 +28,7 @@ import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 
-/** Owner actions on a request: confirm, refuse (with optional reason), mark as finished. */
+/** Owner actions on a request: confirm, refuse (with optional reason), verify returned item. */
 export function useDemandeActions() {
   const confirmer = useConfirmerLocation();
   const refuser = useRefuserLocation();
@@ -84,15 +92,15 @@ export function useDemandeActions() {
       <ConfirmDialog
         open={terminerId != null}
         onOpenChange={(o) => !o && setTerminerId(null)}
-        title="Marquer comme terminée ?"
-        description="Le matériel a-t-il bien été restitué ?"
-        confirmLabel="Oui, terminer"
+        title="Confirmer la réception du matériel ?"
+        description="Vérifiez que le matériel vous a bien été rendu. Cette confirmation clôture la location et fixe, le cas échéant, la pénalité de retard au tarif journalier majoré de 10 % par jour."
+        confirmLabel="Vérifier et clôturer"
         loading={terminer.isPending}
         onConfirm={() =>
           terminerId != null &&
           terminer.mutate(terminerId, {
             onSuccess: () => {
-              toast.success("Location terminée.");
+              toast.success("Réception confirmée. Location clôturée.");
               setTerminerId(null);
             },
             onError: (e) => toast.error(errorMessage(e)),
@@ -136,7 +144,7 @@ export function DemandeDialog({
           <>
             <DialogHeader>
               <DialogTitle>{d.materiel?.nom ?? `Demande #${d.id}`}</DialogTitle>
-              <DialogDescription>Reçue le {formatDate(d.created_at)}</DialogDescription>
+              <DialogDescription>Demande reçue le {formatDateTime(d.created_at)}</DialogDescription>
             </DialogHeader>
             <MaterielPhoto
               categorie={d.materiel?.categorie}
@@ -146,16 +154,38 @@ export function DemandeDialog({
             />
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <Info label="Statut">
-                <StatusBadge statut={d.statut} />
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <StatusBadge statut={d.statut} />
+                  {d.en_retard && <RetardBadge />}
+                </span>
               </Info>
               <Info label="Période">{formatRange(d.date_debut, d.date_fin)}</Info>
+              {(d.date_fin_initiale ?? d.date_fin).slice(0, 10) !== d.date_fin.slice(0, 10) && (
+                <Info label="Retour initialement prévu">
+                  {formatDate(d.date_fin_initiale ?? d.date_fin)}
+                </Info>
+              )}
               <Info label="Durée">
                 {d.nb_jours} jour{d.nb_jours > 1 ? "s" : ""}
+              </Info>
+              <Info label="Quantité demandée">
+                {d.quantite} exemplaire{d.quantite > 1 ? "s" : ""}
               </Info>
               <Info label="Prix total">
                 <span className="font-bold text-primary">{formatFCFA(d.prix_total)}</span>
               </Info>
+              <Info label="Montant total à payer">
+                <span className="font-bold text-primary">
+                  {formatFCFA(d.montant_total_a_payer)}
+                </span>
+              </Info>
             </dl>
+            {d.penalite_jours > 0 && (
+              <Quote label="Pénalité de retard" tone="destructive">
+                {d.penalite_jours} jour{d.penalite_jours > 1 ? "s" : ""} de retard :{" "}
+                {formatFCFA(d.penalite_montant)} (prix journalier majoré de 10 % par jour).
+              </Quote>
+            )}
             <div className="rounded-xl border bg-muted/40 p-4 text-sm">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Locataire
@@ -200,6 +230,7 @@ export function DemandeDialog({
                 {d.motif_refus}
               </Quote>
             )}
+            <HistoriqueLocation historiques={d.historiques} />
             <DemandeActionButtons d={d} actions={actions} onDone={onClose} />
           </>
         )}
@@ -219,41 +250,66 @@ export function DemandeActionButtons({
   onDone?: () => void;
   size?: "default" | "sm";
 }) {
-  if (d.statut === "en_attente")
+  if (d.statut === "en_attente") {
+    const datePassee = isDatePassee(d.date_debut);
     return (
-      <div className="flex flex-wrap gap-2">
-        <LoadingButton
-          size={size}
-          loading={actions.confirmingId === d.id}
-          onClick={() => actions.confirm(d.id, onDone)}
-        >
-          <Check aria-hidden /> Confirmer
-        </LoadingButton>
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <LoadingButton
+            size={size}
+            loading={actions.confirmingId === d.id}
+            disabled={datePassee}
+            title={datePassee ? "La date de début est déjà passée." : undefined}
+            onClick={() => actions.confirm(d.id, onDone)}
+          >
+            <Check aria-hidden /> Confirmer
+          </LoadingButton>
+          <Button
+            size={size}
+            variant="outline"
+            className="text-destructive"
+            onClick={() => {
+              actions.askRefuse(d.id);
+              onDone?.();
+            }}
+          >
+            <X aria-hidden /> Refuser
+          </Button>
+        </div>
+        {datePassee && (
+          <p className="text-xs text-destructive">
+            La date de début est passée : cette demande ne peut plus être confirmée, seulement
+            refusée.
+          </p>
+        )}
+      </div>
+    );
+  }
+  if (d.statut === "confirmee") {
+    const retourPossible = isDatePassee(d.date_fin);
+    return (
+      <div className="space-y-2">
         <Button
           size={size}
-          variant="outline"
-          className="text-destructive"
+          variant="success"
+          disabled={!retourPossible}
+          title={
+            !retourPossible ? "Disponible à partir du lendemain de la date limite." : undefined
+          }
           onClick={() => {
-            actions.askRefuse(d.id);
+            actions.askTerminer(d.id);
             onDone?.();
           }}
         >
-          <X aria-hidden /> Refuser
+          <CircleCheckBig aria-hidden /> Vérifier et confirmer le retour
         </Button>
+        {!retourPossible && (
+          <p className="text-xs text-muted-foreground">
+            Vous pourrez confirmer le retour après le {formatDate(d.date_fin)}.
+          </p>
+        )}
       </div>
     );
-  if (d.statut === "confirmee")
-    return (
-      <Button
-        size={size}
-        variant="outline"
-        onClick={() => {
-          actions.askTerminer(d.id);
-          onDone?.();
-        }}
-      >
-        <CircleCheckBig aria-hidden /> Marquer comme terminée
-      </Button>
-    );
+  }
   return null;
 }

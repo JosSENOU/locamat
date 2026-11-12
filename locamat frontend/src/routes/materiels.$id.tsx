@@ -9,15 +9,19 @@ import { useAuth } from "@/hooks/use-auth";
 import { ApiError, errorMessage } from "@/lib/api";
 import { periodesToRanges, overlapsBooked } from "@/lib/booking";
 import { countDays, formatDateObj, formatFCFA, formatRange, toApiDate } from "@/lib/format";
+import { userCanRent } from "@/lib/constants";
+import type { ProprietaireLite } from "@/types/api";
 import { seo } from "@/lib/seo";
 import { MaterielPhoto } from "@/components/MaterielPhoto";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { DispoBadge, EtatBadge } from "@/components/Badges";
 import { PriceTag } from "@/components/PriceTag";
+import { LocalisationCard, LocalisationInline } from "@/components/Localisation";
 import { ErrorState } from "@/components/States";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { LoadingButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -65,6 +69,7 @@ function MaterielDetail() {
           <MaterielPhoto
             categorie={m.categorie}
             photo={m.photo}
+            photos={m.photos}
             alt={m.nom}
             className="aspect-[4/3] rounded-2xl border"
             iconClassName="size-14"
@@ -76,6 +81,33 @@ function MaterielDetail() {
               <EtatBadge etat={m.etat} />
               <DispoBadge disponible={m.disponible} />
             </div>
+            {m.etats_exemplaires && m.etats_exemplaires.length > 1 && (
+              <div className="mt-4 rounded-xl border bg-card p-4">
+                <h2 className="text-sm font-bold">État de chaque exemplaire</h2>
+                <ul className="mt-2 space-y-2">
+                  {m.etats_exemplaires.map((etat, index) => (
+                    <li
+                      key={`${m.id}-exemplaire-${index}`}
+                      className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2"
+                    >
+                      <span className="text-sm">Exemplaire {index + 1}</span>
+                      <EtatBadge etat={etat} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="mt-2 text-sm text-muted-foreground">
+              {m.quantite_disponible ?? m.quantite} exemplaire
+              {(m.quantite_disponible ?? m.quantite) > 1 ? "s" : ""} disponible
+              {(m.quantite_disponible ?? m.quantite) > 1 ? "s" : ""} sur {m.quantite}.
+            </p>
+            {m.locations_count !== undefined && (
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                {m.locations_count} location{m.locations_count > 1 ? "s" : ""} effectuée
+                {m.locations_count > 1 ? "s" : ""} pour ce matériel.
+              </p>
+            )}
           </div>
           <div className="rounded-2xl border bg-card p-5">
             <h2 className="mb-2 font-bold">Description</h2>
@@ -93,6 +125,10 @@ function MaterielDetail() {
               <div>
                 <p className="text-xs text-muted-foreground">Proposé par</p>
                 <p className="font-semibold">{m.proprietaire.name}</p>
+                <LocalisationInline
+                  proprietaire={m.proprietaire}
+                  className="mt-0.5 text-xs text-muted-foreground"
+                />
               </div>
             </div>
           )}
@@ -102,8 +138,10 @@ function MaterielDetail() {
             materielId={m.id}
             proprietaireId={m.proprietaire_id}
             prix={m.prix_journalier}
+            quantiteMax={Math.max(1, m.quantite_disponible ?? m.quantite)}
             disponible={m.disponible}
             nom={m.nom}
+            proprietaire={m.proprietaire}
           />
         </aside>
       </div>
@@ -115,14 +153,18 @@ function BookingCard({
   materielId,
   proprietaireId,
   prix,
+  quantiteMax,
   disponible,
   nom,
+  proprietaire,
 }: {
   materielId: number;
   proprietaireId: number;
   prix: string;
+  quantiteMax: number;
   disponible: boolean;
   nom: string;
+  proprietaire?: ProprietaireLite | undefined;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -130,19 +172,28 @@ function BookingCard({
   const booked = useMemo(() => periodesToRanges(periodes.data ?? []), [periodes.data]);
   const [range, setRange] = useState<DateRange | undefined>();
   const [message, setMessage] = useState("");
+  const [quantiteText, setQuantiteText] = useState("1");
   const [formError, setFormError] = useState<string | null>(null);
   const create = useCreateLocation();
 
+  const quantite = Number.parseInt(quantiteText, 10);
+  const quantiteValide = Number.isInteger(quantite) && quantite >= 1 && quantite <= quantiteMax;
   const from = range?.from;
   const to = range?.to ?? range?.from;
   const days = from && to ? countDays(from, to) : 0;
-  const total = days * Number.parseFloat(prix);
+  const total = days * Number.parseFloat(prix) * (quantiteValide ? quantite : 1);
   const overlap = from && to ? overlapsBooked(from, to, booked) : false;
 
   const isOwner = user?.id === proprietaireId;
-  const canBook = disponible && !isOwner && (!user || user.role === "locataire");
+  const canBook = disponible && !isOwner && (!user || userCanRent(user));
 
   const submit = () => {
+    if (!quantiteValide) {
+      setFormError(
+        `Indiquez une quantité entre 1 et ${quantiteMax} exemplaire${quantiteMax > 1 ? "s" : ""}.`,
+      );
+      return;
+    }
     if (!from || !to) {
       setFormError("Choisissez une date de début et une date de fin.");
       return;
@@ -155,6 +206,7 @@ function BookingCard({
     create.mutate(
       {
         materiel_id: materielId,
+        quantite,
         date_debut: toApiDate(from),
         date_fin: toApiDate(to),
         message: message.trim() || undefined,
@@ -180,6 +232,7 @@ function BookingCard({
   return (
     <div className="rounded-2xl border bg-card p-5 shadow-elevated">
       <PriceTag value={prix} size="lg" />
+      <LocalisationCard proprietaire={proprietaire} className="mt-4" />
       <div className="mt-5">
         <h2 className="mb-2 flex items-center gap-2 text-sm font-bold">
           <CalendarRange className="size-4 text-primary" aria-hidden /> Choisissez vos dates
@@ -219,7 +272,9 @@ function BookingCard({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">
-              {days} jour{days > 1 ? "s" : ""} × {formatFCFA(prix)}
+              {days} jour{days > 1 ? "s" : ""}
+              {quantiteValide && quantite > 1 ? ` × ${quantite} exemplaires` : ""} ×{" "}
+              {formatFCFA(prix)}
             </span>
           </div>
           <div className="flex justify-between border-t border-primary/20 pt-2 text-base">
@@ -239,10 +294,33 @@ function BookingCard({
             Se connecter pour réserver
           </Link>
         </Button>
-      ) : user.role !== "locataire" ? (
-        <Notice>Seuls les comptes locataires peuvent faire une demande de location.</Notice>
+      ) : !userCanRent(user) ? (
+        <Notice>
+          Seuls les comptes locataires et propriétaires peuvent faire une demande de location.
+        </Notice>
       ) : (
         <div className="mt-5 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="quantite" className="text-sm font-semibold">
+              Quantité souhaitée
+            </Label>
+            <Input
+              id="quantite"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={quantiteMax}
+              step={1}
+              value={quantiteText}
+              onChange={(e) => setQuantiteText(e.target.value)}
+              aria-describedby="quantite-aide"
+              aria-invalid={!quantiteValide}
+            />
+            <p id="quantite-aide" className="text-xs text-muted-foreground">
+              {quantiteMax} exemplaire{quantiteMax > 1 ? "s" : ""} disponible
+              {quantiteMax > 1 ? "s" : ""} au maximum.
+            </p>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="message" className="text-sm font-semibold">
               Message au propriétaire{" "}

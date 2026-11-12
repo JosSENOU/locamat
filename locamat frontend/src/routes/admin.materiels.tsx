@@ -168,6 +168,7 @@ function AdminMaterielsPage() {
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {item.locations_count ?? 0} location
+                          {item.locations_count === 1 ? "" : "s"} effectuée
                           {item.locations_count === 1 ? "" : "s"}
                         </span>
                       </div>

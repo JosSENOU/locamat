@@ -16,7 +16,13 @@ class AdminUpdateUserRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', Rule::in([
+            'role' => ['required_without:roles', 'prohibits:roles', Rule::in([
+                User::ROLE_ADMIN,
+                User::ROLE_PROPRIETAIRE,
+                User::ROLE_LOCATAIRE,
+            ])],
+            'roles' => ['required_without:role', 'array', 'min:1', 'prohibits:role'],
+            'roles.*' => ['required', 'distinct', Rule::in([
                 User::ROLE_ADMIN,
                 User::ROLE_PROPRIETAIRE,
                 User::ROLE_LOCATAIRE,

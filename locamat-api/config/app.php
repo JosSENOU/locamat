@@ -53,19 +53,19 @@ return [
     */
 
     'url' => env('APP_URL', 'http://localhost'),
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | Here you may specify the default timezone for your application.
+    | Application dates use the local timezone of Benin.
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'Africa/Porto-Novo',
 
     /*
     |--------------------------------------------------------------------------

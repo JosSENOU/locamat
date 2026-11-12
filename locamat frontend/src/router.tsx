@@ -3,7 +3,14 @@ import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
-  const queryClient = new QueryClient();
+  // `networkMode: "always"` : l'API Laravel est en local (localhost) ; sans accès Internet,
+  // TanStack Query suspendrait sinon toutes les requêtes ("paused") et rien ne s'afficherait.
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { networkMode: "always" },
+      mutations: { networkMode: "always" },
+    },
+  });
 
   const router = createRouter({
     routeTree,

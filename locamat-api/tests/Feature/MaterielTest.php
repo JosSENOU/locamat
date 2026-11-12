@@ -19,14 +19,18 @@ class MaterielTest extends TestCase
     {
         $proprietaire = User::factory()->proprietaire()->create();
         $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create();
-        Location::factory()->for($materiel, 'materiel')->count(2)->create();
+        Location::factory()->for($materiel, 'materiel')->count(2)->create(['statut' => Location::STATUT_TERMINEE]);
+        Location::factory()->for($materiel, 'materiel')->create(['statut' => Location::STATUT_CONFIRMEE]);
+        Location::factory()->for($materiel, 'materiel')->create(['statut' => Location::STATUT_REFUSEE]);
+        Location::factory()->for($materiel, 'materiel')->create(['statut' => Location::STATUT_EN_ATTENTE]);
         Materiel::factory()->create();
 
         $this->actingAs($proprietaire)
             ->getJson('/api/proprietaire/materiels')
             ->assertOk()
             ->assertJsonCount(1)
-            ->assertJsonPath('0.locations_count', 2);
+            ->assertJsonPath('0.locations_count', 2)
+            ->assertJsonPath('0.locations_confirmees_count', 1);
     }
 
     public function test_only_authenticated_proprietaires_can_access_the_module(): void
@@ -36,14 +40,14 @@ class MaterielTest extends TestCase
             ->assertJsonStructure(['message', 'errors'])
             ->assertJsonPath('message', 'Authentification requise.');
 
-        $locataire = User::factory()->create(['role' => User::ROLE_LOCATAIRE]);
+        $locataire = User::factory()->create();
 
         $this->actingAs($locataire)
             ->getJson('/api/proprietaire/materiels')
             ->assertForbidden();
     }
 
-    public function test_proprietaire_can_create_a_materiel_and_store_its_photo(): void
+    public function test_proprietaire_can_create_a_materiel_and_store_its_photos(): void
     {
         Storage::fake('public');
         $proprietaire = User::factory()->proprietaire()->create();
@@ -54,19 +58,57 @@ class MaterielTest extends TestCase
             'categorie' => 'Video',
             'description' => 'Projecteur portable',
             'prix_journalier' => '35.50',
+            'quantite' => 3,
             'etat' => 'bon',
+            'etats_exemplaires' => ['neuf', 'bon', 'usé'],
             'proprietaire_id' => $anotherProprietaire->id,
-            'photo' => UploadedFile::fake()->image('projecteur.png'),
+            'photos' => [
+                UploadedFile::fake()->image('projecteur.png'),
+                UploadedFile::fake()->image('projecteur-profil.png'),
+            ],
         ]);
 
         $response->assertCreated()
             ->assertJsonPath('nom', 'Videoprojecteur')
-            ->assertJsonPath('proprietaire_id', $proprietaire->id);
+            ->assertJsonPath('user_id', $proprietaire->id)
+            ->assertJsonPath('quantite', 3)
+            ->assertJsonCount(2, 'photos');
 
-        $materiel = Materiel::where('nom', 'Videoprojecteur')->firstOrFail();
-        $this->assertSame($proprietaire->id, $materiel->proprietaire_id);
-        $this->assertNotNull($materiel->photo);
-        Storage::disk('public')->assertExists($materiel->photo);
+        $materiel = Materiel::where('nom', 'Videoprojecteur')->with('photos')->firstOrFail();
+        $this->assertSame($proprietaire->id, $materiel->user_id);
+        $this->assertSame(3, $materiel->quantite);
+        $this->assertCount(2, $materiel->photos);
+        foreach ($materiel->photos as $photo) {
+            Storage::disk('public')->assertExists($photo->path);
+        }
+    }
+
+    public function test_proprietaire_can_publish_up_to_three_photos_for_a_materiel(): void
+    {
+        Storage::fake('public');
+        $proprietaire = User::factory()->proprietaire()->create();
+
+        $response = $this->actingAs($proprietaire)->post('/api/materiels', [
+            'nom' => 'Appareil photo',
+            'categorie' => 'Photo',
+            'prix_journalier' => '20.00',
+            'etat' => 'bon',
+            'etats_exemplaires' => ['bon'],
+            'photos' => [
+                UploadedFile::fake()->image('face.jpg'),
+                UploadedFile::fake()->image('profil.jpg'),
+                UploadedFile::fake()->image('dos.jpg'),
+            ],
+        ], ['Accept' => 'application/json']);
+
+        $response->assertCreated()->assertJsonCount(3, 'photos');
+
+        $materiel = Materiel::findOrFail($response->json('id'));
+        $this->assertCount(3, $materiel->photos);
+
+        foreach ($materiel->photos as $photo) {
+            Storage::disk('public')->assertExists($photo->path);
+        }
     }
 
     public function test_proprietaire_can_update_its_materiel(): void
@@ -80,17 +122,108 @@ class MaterielTest extends TestCase
                 'categorie' => 'Photo',
                 'description' => 'Reflex',
                 'prix_journalier' => '42.00',
+                'quantite' => 4,
                 'etat' => 'neuf',
+                'etats_exemplaires' => ['neuf', 'bon', 'usé', 'neuf'],
             ])
             ->assertOk()
             ->assertJsonPath('nom', 'Appareil photo')
-            ->assertJsonPath('prix_journalier', '42.00');
+            ->assertJsonPath('prix_journalier', '42.00')
+            ->assertJsonPath('quantite', 4);
 
         $this->assertDatabaseHas('materiels', [
             'id' => $materiel->id,
             'nom' => 'Appareil photo',
             'prix_journalier' => 42,
+            'quantite' => 4,
         ]);
+        $this->assertSame(['neuf', 'bon', 'usé', 'neuf'], $materiel->fresh()->etats_exemplaires);
+    }
+
+    public function test_each_materiel_copy_must_have_a_valid_condition(): void
+    {
+        Storage::fake('public');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $payload = [
+            'nom' => 'Projecteurs',
+            'categorie' => 'Video',
+            'prix_journalier' => '20.00',
+            'quantite' => 3,
+            'etat' => 'neuf',
+            'photos' => [UploadedFile::fake()->image('projecteurs.jpg')],
+        ];
+
+        $this->actingAs($proprietaire)
+            ->postJson('/api/materiels', $payload + ['etats_exemplaires' => ['neuf', 'bon']])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('etats_exemplaires');
+
+        $this->postJson('/api/materiels', $payload + ['etats_exemplaires' => ['neuf', 'bon', 'inconnu']])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('etats_exemplaires.2');
+
+        $this->postJson('/api/materiels', $payload + ['etats_exemplaires' => ['neuf', 'bon', 'usé']])
+            ->assertCreated()
+            ->assertJsonPath('etats_exemplaires', ['neuf', 'bon', 'usé']);
+    }
+
+    public function test_owner_cannot_reduce_stock_below_simultaneous_confirmed_rentals(): void
+    {
+        $this->travelTo('2026-11-03 12:00:00');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create(['quantite' => 2]);
+        Location::factory()->for($materiel, 'materiel')->count(2)->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-10',
+            'date_fin' => '2026-11-12',
+        ]);
+
+        $this->actingAs($proprietaire)
+            ->putJson("/api/materiels/{$materiel->id}", [
+                'nom' => $materiel->nom,
+                'categorie' => $materiel->categorie->name,
+                'prix_journalier' => $materiel->prix_journalier,
+                'etat' => $materiel->etat,
+                'quantite' => 1,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'Le stock ne peut pas être inférieur au nombre de locations simultanées déjà confirmées.',
+            );
+
+        $this->assertSame(2, $materiel->fresh()->quantite);
+    }
+
+    public function test_overdue_unreturned_rental_counts_against_future_confirmed_stock(): void
+    {
+        $this->travelTo('2026-11-05 12:00:00');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create(['quantite' => 2]);
+        Location::factory()->for($materiel, 'materiel')->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-01',
+            'date_fin' => '2026-11-03',
+        ]);
+        Location::factory()->for($materiel, 'materiel')->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-10',
+            'date_fin' => '2026-11-12',
+        ]);
+
+        $this->actingAs($proprietaire)
+            ->putJson("/api/materiels/{$materiel->id}", [
+                'nom' => $materiel->nom,
+                'categorie' => $materiel->categorie->name,
+                'prix_journalier' => $materiel->prix_journalier,
+                'etat' => $materiel->etat,
+                'quantite' => 1,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'Le stock ne peut pas être inférieur au nombre de locations simultanées déjà confirmées.',
+            );
     }
 
     public function test_proprietaire_can_replace_a_materiel_photo(): void
@@ -98,23 +231,26 @@ class MaterielTest extends TestCase
         Storage::fake('public');
         $proprietaire = User::factory()->proprietaire()->create();
         $oldPhoto = UploadedFile::fake()->image('ancienne.png')->store('materiels', 'public');
-        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
-            'photo' => $oldPhoto,
-        ]);
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create();
+        $materiel->photos()->create(['path' => $oldPhoto, 'position' => 0]);
 
         $this->actingAs($proprietaire)
             ->put("/api/materiels/{$materiel->id}", [
                 'nom' => $materiel->nom,
-                'categorie' => $materiel->categorie,
+                'categorie' => $materiel->categorie->name,
                 'prix_journalier' => $materiel->prix_journalier,
                 'etat' => $materiel->etat,
-                'photo' => UploadedFile::fake()->image('nouvelle.webp'),
+                'photos' => [
+                    UploadedFile::fake()->image('nouvelle-face.webp'),
+                    UploadedFile::fake()->image('nouveau-profil.webp'),
+                ],
             ], ['Accept' => 'application/json'])
             ->assertOk();
 
-        $materiel->refresh();
-        $this->assertNotSame($oldPhoto, $materiel->photo);
-        Storage::disk('public')->assertExists($materiel->photo);
+        $materiel->refresh()->load('photos');
+        $this->assertNotSame($oldPhoto, $materiel->photos->first()->path);
+        $this->assertCount(2, $materiel->photos);
+        Storage::disk('public')->assertExists($materiel->photos->first()->path);
         Storage::disk('public')->assertMissing($oldPhoto);
     }
 
@@ -176,10 +312,13 @@ class MaterielTest extends TestCase
                 'categorie' => 'Photo',
                 'prix_journalier' => '10.00',
                 'etat' => 'bon',
-                'photo' => UploadedFile::fake()->image('photo.png')->size(2049),
+                'photos' => [
+                    UploadedFile::fake()->image('photo.png')->size(2049),
+                    UploadedFile::fake()->image('photo-profil.png'),
+                ],
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('photo');
+            ->assertJsonValidationErrors('photos.0');
 
         $this->assertDatabaseCount('materiels', 0);
     }
@@ -194,10 +333,13 @@ class MaterielTest extends TestCase
                 'categorie' => 'Photo',
                 'prix_journalier' => '10.00',
                 'etat' => 'bon',
-                'photo' => UploadedFile::fake()->create('photo.jpg', 10, 'text/plain'),
+                'photos' => [
+                    UploadedFile::fake()->create('photo.jpg', 10, 'text/plain'),
+                    UploadedFile::fake()->image('photo-profil.jpg'),
+                ],
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('photo');
+            ->assertJsonValidationErrors('photos.0');
 
         $this->assertDatabaseCount('materiels', 0);
     }
@@ -247,22 +389,21 @@ class MaterielTest extends TestCase
         $this->assertModelExists($materiel);
     }
 
-    public function test_proprietaire_can_delete_materiel_without_locations_and_remove_its_photo(): void
+    public function test_proprietaire_can_delete_materiel_without_locations_softly_and_keep_its_photo(): void
     {
         Storage::fake('public');
         $proprietaire = User::factory()->proprietaire()->create();
         $photo = UploadedFile::fake()->image('photo.webp');
         $path = $photo->store('materiels', 'public');
-        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
-            'photo' => $path,
-        ]);
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create();
+        $materiel->photos()->create(['path' => $path, 'position' => 0]);
 
         $this->actingAs($proprietaire)
             ->deleteJson("/api/materiels/{$materiel->id}")
             ->assertNoContent();
 
-        $this->assertModelMissing($materiel);
-        Storage::disk('public')->assertMissing($path);
+        $this->assertSoftDeleted($materiel);
+        Storage::disk('public')->assertExists($path);
     }
 
     public function test_upload_requires_the_image_mime_type_and_permitted_extension(): void
@@ -275,9 +416,34 @@ class MaterielTest extends TestCase
                 'categorie' => 'Photo',
                 'prix_journalier' => '10.00',
                 'etat' => 'bon',
-                'photo' => UploadedFile::fake()->image('photo.gif'),
+                'photos' => [
+                    UploadedFile::fake()->image('photo.gif'),
+                    UploadedFile::fake()->image('photo-profil.gif'),
+                ],
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('photo');
+            ->assertJsonValidationErrors('photos.0');
+    }
+
+    public function test_proprietaire_can_publish_a_materiel_with_one_photo(): void
+    {
+        Storage::fake('public');
+        $proprietaire = User::factory()->proprietaire()->create();
+
+        $response = $this->actingAs($proprietaire)
+            ->post('/api/materiels', [
+                'nom' => 'Materiel avec une photo',
+                'categorie' => 'Photo',
+                'prix_journalier' => '10.00',
+                'etat' => 'bon',
+                'etats_exemplaires' => ['bon'],
+                'photos' => [UploadedFile::fake()->image('unique.jpg')],
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonCount(1, 'photos')
+            ->assertJsonPath('photo', fn (?string $photo): bool => is_string($photo));
+
+        $this->assertDatabaseCount('materiels', 1);
+        Storage::disk('public')->assertExists($response->json('photo'));
     }
 }

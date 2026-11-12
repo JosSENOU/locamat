@@ -19,6 +19,7 @@ class ProprietaireDemandesRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'materiel_id' => ['sometimes', 'nullable', 'integer'],
             'statut' => [
                 'sometimes',
                 'nullable',

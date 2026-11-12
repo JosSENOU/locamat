@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { ClipboardList, LayoutDashboard, Package, Users } from "lucide-react";
+import { ClipboardList, Flag, LayoutDashboard, Package, Tags, Users } from "lucide-react";
 import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/admin")({
@@ -10,7 +10,9 @@ const NAV = [
   { to: "/admin", label: "Vue d’ensemble", icon: LayoutDashboard, exact: true },
   { to: "/admin/utilisateurs", label: "Comptes", icon: Users, exact: false },
   { to: "/admin/materiels", label: "Matériels", icon: Package, exact: false },
+  { to: "/admin/categories", label: "Catégories", icon: Tags, exact: false },
   { to: "/admin/locations", label: "Locations", icon: ClipboardList, exact: false },
+  { to: "/admin/reclamations", label: "Plaintes", icon: Flag, exact: false },
 ] as const;
 
 function AdminLayout() {
@@ -34,8 +36,7 @@ function AdminLayout() {
             <div className="mt-5 rounded-xl border bg-card p-4">
               <p className="text-sm font-bold">Administration LocaMat</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Les changements de rôle et de visibilité sont immédiats. Les données ne sont jamais
-                supprimées.
+                Gérez les comptes, les locations et les signalements de la plateforme.
               </p>
             </div>
           </nav>
@@ -46,7 +47,7 @@ function AdminLayout() {
       </div>
       <nav
         aria-label="Espace administration (mobile)"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-card/95 backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t bg-card/95 backdrop-blur lg:hidden"
       >
         {NAV.map((item) => (
           <Link

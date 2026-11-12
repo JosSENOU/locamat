@@ -1,7 +1,10 @@
 import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/use-auth";
+import { userHasRole } from "@/lib/constants";
 import { Logo } from "./Logo";
 
 export function Footer() {
+  const { user } = useAuth();
   return (
     <footer className="mt-16 border-t bg-card">
       <div className="container-page flex flex-col gap-6 py-10 sm:flex-row sm:items-center sm:justify-between">
@@ -13,7 +16,11 @@ export function Footer() {
         </div>
         <nav aria-label="Liens de pied de page" className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-muted-foreground">
           <Link to="/" className="hover:text-foreground">Catalogue</Link>
-          <Link to="/inscription" className="hover:text-foreground">Proposer mon matériel</Link>
+          {userHasRole(user, "proprietaire") ? (
+            <Link to="/proprietaire/materiels/nouveau" className="hover:text-foreground">Proposer mon matériel</Link>
+          ) : (
+            <Link to="/inscription" search={{ role: "proprietaire" }} className="hover:text-foreground">Proposer mon matériel</Link>
+          )}
           <Link to="/connexion" className="hover:text-foreground">Connexion</Link>
         </nav>
       </div>

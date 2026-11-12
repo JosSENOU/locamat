@@ -11,18 +11,33 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CompteBloqueRouteImport } from './routes/compte-bloque'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as InscriptionRouteImport } from './routes/inscription'
 import { Route as MesLocationsRouteImport } from './routes/mes-locations'
+import { Route as MotDePasseOublieRouteImport } from './routes/mot-de-passe-oublie'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as ProprietaireRouteImport } from './routes/proprietaire'
+import { Route as SuperAdminRouteImport } from './routes/super-admin'
+import { Route as VerificationEmailRouteImport } from './routes/verification-email'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminLocationsRouteImport } from './routes/admin.locations'
 import { Route as AdminMaterielsRouteImport } from './routes/admin.materiels'
+import { Route as AdminReclamationsRouteImport } from './routes/admin.reclamations'
 import { Route as AdminUtilisateursRouteImport } from './routes/admin.utilisateurs'
 import { Route as MaterielsIdRouteImport } from './routes/materiels.$id'
+import { Route as MotDePasseCodeVerificationRouteImport } from './routes/mot-de-passe.code-verification'
+import { Route as MotDePasseReinitialiserRouteImport } from './routes/mot-de-passe.reinitialiser'
 import { Route as ProprietaireIndexRouteImport } from './routes/proprietaire.index'
 import { Route as ProprietaireDemandesRouteImport } from './routes/proprietaire.demandes'
+import { Route as SuperAdminIndexRouteImport } from './routes/super-admin.index'
+import { Route as SuperAdminAdministrateursRouteImport } from './routes/super-admin.administrateurs'
+import { Route as SuperAdminComptabiliteRouteImport } from './routes/super-admin.comptabilite'
+import { Route as SuperAdminConnexionRouteImport } from './routes/super-admin.connexion'
+import { Route as SuperAdminCorbeilleRouteImport } from './routes/super-admin.corbeille'
+import { Route as SuperAdminJournalRouteImport } from './routes/super-admin.journal'
+import { Route as SuperAdminUtilisateursRouteImport } from './routes/super-admin.utilisateurs'
 import { Route as ProprietaireMaterielsIndexRouteImport } from './routes/proprietaire.materiels.index'
 import { Route as ProprietaireMaterielsNouveauRouteImport } from './routes/proprietaire.materiels.nouveau'
 import { Route as ProprietaireMaterielsIdModifierRouteImport } from './routes/proprietaire.materiels.$id.modifier'
@@ -35,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompteBloqueRoute = CompteBloqueRouteImport.update({
+  id: '/compte-bloque',
+  path: '/compte-bloque',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnexionRoute = ConnexionRouteImport.update({
@@ -52,6 +72,11 @@ const MesLocationsRoute = MesLocationsRouteImport.update({
   path: '/mes-locations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MotDePasseOublieRoute = MotDePasseOublieRouteImport.update({
+  id: '/mot-de-passe-oublie',
+  path: '/mot-de-passe-oublie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfilRoute = ProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
@@ -62,9 +87,24 @@ const ProprietaireRoute = ProprietaireRouteImport.update({
   path: '/proprietaire',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuperAdminRoute = SuperAdminRouteImport.update({
+  id: '/super-admin',
+  path: '/super-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerificationEmailRoute = VerificationEmailRouteImport.update({
+  id: '/verification-email',
+  path: '/verification-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLocationsRoute = AdminLocationsRouteImport.update({
@@ -77,6 +117,11 @@ const AdminMaterielsRoute = AdminMaterielsRouteImport.update({
   path: '/materiels',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReclamationsRoute = AdminReclamationsRouteImport.update({
+  id: '/reclamations',
+  path: '/reclamations',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminUtilisateursRoute = AdminUtilisateursRouteImport.update({
   id: '/utilisateurs',
   path: '/utilisateurs',
@@ -85,6 +130,17 @@ const AdminUtilisateursRoute = AdminUtilisateursRouteImport.update({
 const MaterielsIdRoute = MaterielsIdRouteImport.update({
   id: '/materiels/$id',
   path: '/materiels/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MotDePasseCodeVerificationRoute =
+  MotDePasseCodeVerificationRouteImport.update({
+    id: '/mot-de-passe/code-verification',
+    path: '/mot-de-passe/code-verification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const MotDePasseReinitialiserRoute = MotDePasseReinitialiserRouteImport.update({
+  id: '/mot-de-passe/reinitialiser',
+  path: '/mot-de-passe/reinitialiser',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProprietaireIndexRoute = ProprietaireIndexRouteImport.update({
@@ -96,6 +152,42 @@ const ProprietaireDemandesRoute = ProprietaireDemandesRouteImport.update({
   id: '/demandes',
   path: '/demandes',
   getParentRoute: () => ProprietaireRoute,
+} as any)
+const SuperAdminIndexRoute = SuperAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminAdministrateursRoute =
+  SuperAdminAdministrateursRouteImport.update({
+    id: '/administrateurs',
+    path: '/administrateurs',
+    getParentRoute: () => SuperAdminRoute,
+  } as any)
+const SuperAdminComptabiliteRoute = SuperAdminComptabiliteRouteImport.update({
+  id: '/comptabilite',
+  path: '/comptabilite',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminConnexionRoute = SuperAdminConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminCorbeilleRoute = SuperAdminCorbeilleRouteImport.update({
+  id: '/corbeille',
+  path: '/corbeille',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminJournalRoute = SuperAdminJournalRouteImport.update({
+  id: '/journal',
+  path: '/journal',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminUtilisateursRoute = SuperAdminUtilisateursRouteImport.update({
+  id: '/utilisateurs',
+  path: '/utilisateurs',
+  getParentRoute: () => SuperAdminRoute,
 } as any)
 const ProprietaireMaterielsIndexRoute =
   ProprietaireMaterielsIndexRouteImport.update({
@@ -119,35 +211,64 @@ const ProprietaireMaterielsIdModifierRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/compte-bloque': typeof CompteBloqueRoute
   '/connexion': typeof ConnexionRoute
   '/inscription': typeof InscriptionRoute
   '/mes-locations': typeof MesLocationsRoute
+  '/mot-de-passe-oublie': typeof MotDePasseOublieRoute
   '/profil': typeof ProfilRoute
   '/proprietaire': typeof ProprietaireRouteWithChildren
+  '/super-admin': typeof SuperAdminRouteWithChildren
+  '/verification-email': typeof VerificationEmailRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/locations': typeof AdminLocationsRoute
   '/admin/materiels': typeof AdminMaterielsRoute
+  '/admin/reclamations': typeof AdminReclamationsRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/materiels/$id': typeof MaterielsIdRoute
+  '/mot-de-passe/code-verification': typeof MotDePasseCodeVerificationRoute
+  '/mot-de-passe/reinitialiser': typeof MotDePasseReinitialiserRoute
   '/proprietaire/demandes': typeof ProprietaireDemandesRoute
+  '/super-admin/administrateurs': typeof SuperAdminAdministrateursRoute
+  '/super-admin/comptabilite': typeof SuperAdminComptabiliteRoute
+  '/super-admin/connexion': typeof SuperAdminConnexionRoute
+  '/super-admin/corbeille': typeof SuperAdminCorbeilleRoute
+  '/super-admin/journal': typeof SuperAdminJournalRoute
+  '/super-admin/utilisateurs': typeof SuperAdminUtilisateursRoute
   '/admin/': typeof AdminIndexRoute
   '/proprietaire/': typeof ProprietaireIndexRoute
+  '/super-admin/': typeof SuperAdminIndexRoute
   '/proprietaire/materiels/nouveau': typeof ProprietaireMaterielsNouveauRoute
   '/proprietaire/materiels/': typeof ProprietaireMaterielsIndexRoute
   '/proprietaire/materiels/$id/modifier': typeof ProprietaireMaterielsIdModifierRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/compte-bloque': typeof CompteBloqueRoute
   '/connexion': typeof ConnexionRoute
   '/inscription': typeof InscriptionRoute
   '/mes-locations': typeof MesLocationsRoute
+  '/mot-de-passe-oublie': typeof MotDePasseOublieRoute
   '/profil': typeof ProfilRoute
+  '/verification-email': typeof VerificationEmailRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/locations': typeof AdminLocationsRoute
   '/admin/materiels': typeof AdminMaterielsRoute
+  '/admin/reclamations': typeof AdminReclamationsRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/materiels/$id': typeof MaterielsIdRoute
+  '/mot-de-passe/code-verification': typeof MotDePasseCodeVerificationRoute
+  '/mot-de-passe/reinitialiser': typeof MotDePasseReinitialiserRoute
   '/proprietaire/demandes': typeof ProprietaireDemandesRoute
+  '/super-admin/administrateurs': typeof SuperAdminAdministrateursRoute
+  '/super-admin/comptabilite': typeof SuperAdminComptabiliteRoute
+  '/super-admin/connexion': typeof SuperAdminConnexionRoute
+  '/super-admin/corbeille': typeof SuperAdminCorbeilleRoute
+  '/super-admin/journal': typeof SuperAdminJournalRoute
+  '/super-admin/utilisateurs': typeof SuperAdminUtilisateursRoute
   '/admin': typeof AdminIndexRoute
   '/proprietaire': typeof ProprietaireIndexRoute
+  '/super-admin': typeof SuperAdminIndexRoute
   '/proprietaire/materiels/nouveau': typeof ProprietaireMaterielsNouveauRoute
   '/proprietaire/materiels': typeof ProprietaireMaterielsIndexRoute
   '/proprietaire/materiels/$id/modifier': typeof ProprietaireMaterielsIdModifierRoute
@@ -156,18 +277,33 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/compte-bloque': typeof CompteBloqueRoute
   '/connexion': typeof ConnexionRoute
   '/inscription': typeof InscriptionRoute
   '/mes-locations': typeof MesLocationsRoute
+  '/mot-de-passe-oublie': typeof MotDePasseOublieRoute
   '/profil': typeof ProfilRoute
   '/proprietaire': typeof ProprietaireRouteWithChildren
+  '/super-admin': typeof SuperAdminRouteWithChildren
+  '/verification-email': typeof VerificationEmailRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/locations': typeof AdminLocationsRoute
   '/admin/materiels': typeof AdminMaterielsRoute
+  '/admin/reclamations': typeof AdminReclamationsRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/materiels/$id': typeof MaterielsIdRoute
+  '/mot-de-passe/code-verification': typeof MotDePasseCodeVerificationRoute
+  '/mot-de-passe/reinitialiser': typeof MotDePasseReinitialiserRoute
   '/proprietaire/demandes': typeof ProprietaireDemandesRoute
+  '/super-admin/administrateurs': typeof SuperAdminAdministrateursRoute
+  '/super-admin/comptabilite': typeof SuperAdminComptabiliteRoute
+  '/super-admin/connexion': typeof SuperAdminConnexionRoute
+  '/super-admin/corbeille': typeof SuperAdminCorbeilleRoute
+  '/super-admin/journal': typeof SuperAdminJournalRoute
+  '/super-admin/utilisateurs': typeof SuperAdminUtilisateursRoute
   '/admin/': typeof AdminIndexRoute
   '/proprietaire/': typeof ProprietaireIndexRoute
+  '/super-admin/': typeof SuperAdminIndexRoute
   '/proprietaire/materiels/nouveau': typeof ProprietaireMaterielsNouveauRoute
   '/proprietaire/materiels/': typeof ProprietaireMaterielsIndexRoute
   '/proprietaire/materiels/$id/modifier': typeof ProprietaireMaterielsIdModifierRoute
@@ -177,35 +313,64 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/compte-bloque'
     | '/connexion'
     | '/inscription'
     | '/mes-locations'
+    | '/mot-de-passe-oublie'
     | '/profil'
     | '/proprietaire'
+    | '/super-admin'
+    | '/verification-email'
+    | '/admin/categories'
     | '/admin/locations'
     | '/admin/materiels'
+    | '/admin/reclamations'
     | '/admin/utilisateurs'
     | '/materiels/$id'
+    | '/mot-de-passe/code-verification'
+    | '/mot-de-passe/reinitialiser'
     | '/proprietaire/demandes'
+    | '/super-admin/administrateurs'
+    | '/super-admin/comptabilite'
+    | '/super-admin/connexion'
+    | '/super-admin/corbeille'
+    | '/super-admin/journal'
+    | '/super-admin/utilisateurs'
     | '/admin/'
     | '/proprietaire/'
+    | '/super-admin/'
     | '/proprietaire/materiels/nouveau'
     | '/proprietaire/materiels/'
     | '/proprietaire/materiels/$id/modifier'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/compte-bloque'
     | '/connexion'
     | '/inscription'
     | '/mes-locations'
+    | '/mot-de-passe-oublie'
     | '/profil'
+    | '/verification-email'
+    | '/admin/categories'
     | '/admin/locations'
     | '/admin/materiels'
+    | '/admin/reclamations'
     | '/admin/utilisateurs'
     | '/materiels/$id'
+    | '/mot-de-passe/code-verification'
+    | '/mot-de-passe/reinitialiser'
     | '/proprietaire/demandes'
+    | '/super-admin/administrateurs'
+    | '/super-admin/comptabilite'
+    | '/super-admin/connexion'
+    | '/super-admin/corbeille'
+    | '/super-admin/journal'
+    | '/super-admin/utilisateurs'
     | '/admin'
     | '/proprietaire'
+    | '/super-admin'
     | '/proprietaire/materiels/nouveau'
     | '/proprietaire/materiels'
     | '/proprietaire/materiels/$id/modifier'
@@ -213,18 +378,33 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/compte-bloque'
     | '/connexion'
     | '/inscription'
     | '/mes-locations'
+    | '/mot-de-passe-oublie'
     | '/profil'
     | '/proprietaire'
+    | '/super-admin'
+    | '/verification-email'
+    | '/admin/categories'
     | '/admin/locations'
     | '/admin/materiels'
+    | '/admin/reclamations'
     | '/admin/utilisateurs'
     | '/materiels/$id'
+    | '/mot-de-passe/code-verification'
+    | '/mot-de-passe/reinitialiser'
     | '/proprietaire/demandes'
+    | '/super-admin/administrateurs'
+    | '/super-admin/comptabilite'
+    | '/super-admin/connexion'
+    | '/super-admin/corbeille'
+    | '/super-admin/journal'
+    | '/super-admin/utilisateurs'
     | '/admin/'
     | '/proprietaire/'
+    | '/super-admin/'
     | '/proprietaire/materiels/nouveau'
     | '/proprietaire/materiels/'
     | '/proprietaire/materiels/$id/modifier'
@@ -233,12 +413,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  CompteBloqueRoute: typeof CompteBloqueRoute
   ConnexionRoute: typeof ConnexionRoute
   InscriptionRoute: typeof InscriptionRoute
   MesLocationsRoute: typeof MesLocationsRoute
+  MotDePasseOublieRoute: typeof MotDePasseOublieRoute
   ProfilRoute: typeof ProfilRoute
   ProprietaireRoute: typeof ProprietaireRouteWithChildren
+  SuperAdminRoute: typeof SuperAdminRouteWithChildren
+  VerificationEmailRoute: typeof VerificationEmailRoute
   MaterielsIdRoute: typeof MaterielsIdRoute
+  MotDePasseCodeVerificationRoute: typeof MotDePasseCodeVerificationRoute
+  MotDePasseReinitialiserRoute: typeof MotDePasseReinitialiserRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -255,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compte-bloque': {
+      id: '/compte-bloque'
+      path: '/compte-bloque'
+      fullPath: '/compte-bloque'
+      preLoaderRoute: typeof CompteBloqueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/connexion': {
@@ -278,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MesLocationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mot-de-passe-oublie': {
+      id: '/mot-de-passe-oublie'
+      path: '/mot-de-passe-oublie'
+      fullPath: '/mot-de-passe-oublie'
+      preLoaderRoute: typeof MotDePasseOublieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profil': {
       id: '/profil'
       path: '/profil'
@@ -292,11 +492,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProprietaireRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/super-admin': {
+      id: '/super-admin'
+      path: '/super-admin'
+      fullPath: '/super-admin'
+      preLoaderRoute: typeof SuperAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verification-email': {
+      id: '/verification-email'
+      path: '/verification-email'
+      fullPath: '/verification-email'
+      preLoaderRoute: typeof VerificationEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/locations': {
@@ -313,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMaterielsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/reclamations': {
+      id: '/admin/reclamations'
+      path: '/reclamations'
+      fullPath: '/admin/reclamations'
+      preLoaderRoute: typeof AdminReclamationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/utilisateurs': {
       id: '/admin/utilisateurs'
       path: '/utilisateurs'
@@ -325,6 +553,20 @@ declare module '@tanstack/react-router' {
       path: '/materiels/$id'
       fullPath: '/materiels/$id'
       preLoaderRoute: typeof MaterielsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mot-de-passe/code-verification': {
+      id: '/mot-de-passe/code-verification'
+      path: '/mot-de-passe/code-verification'
+      fullPath: '/mot-de-passe/code-verification'
+      preLoaderRoute: typeof MotDePasseCodeVerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mot-de-passe/reinitialiser': {
+      id: '/mot-de-passe/reinitialiser'
+      path: '/mot-de-passe/reinitialiser'
+      fullPath: '/mot-de-passe/reinitialiser'
+      preLoaderRoute: typeof MotDePasseReinitialiserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proprietaire/': {
@@ -340,6 +582,55 @@ declare module '@tanstack/react-router' {
       fullPath: '/proprietaire/demandes'
       preLoaderRoute: typeof ProprietaireDemandesRouteImport
       parentRoute: typeof ProprietaireRoute
+    }
+    '/super-admin/': {
+      id: '/super-admin/'
+      path: '/'
+      fullPath: '/super-admin/'
+      preLoaderRoute: typeof SuperAdminIndexRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/administrateurs': {
+      id: '/super-admin/administrateurs'
+      path: '/administrateurs'
+      fullPath: '/super-admin/administrateurs'
+      preLoaderRoute: typeof SuperAdminAdministrateursRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/comptabilite': {
+      id: '/super-admin/comptabilite'
+      path: '/comptabilite'
+      fullPath: '/super-admin/comptabilite'
+      preLoaderRoute: typeof SuperAdminComptabiliteRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/connexion': {
+      id: '/super-admin/connexion'
+      path: '/connexion'
+      fullPath: '/super-admin/connexion'
+      preLoaderRoute: typeof SuperAdminConnexionRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/corbeille': {
+      id: '/super-admin/corbeille'
+      path: '/corbeille'
+      fullPath: '/super-admin/corbeille'
+      preLoaderRoute: typeof SuperAdminCorbeilleRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/journal': {
+      id: '/super-admin/journal'
+      path: '/journal'
+      fullPath: '/super-admin/journal'
+      preLoaderRoute: typeof SuperAdminJournalRouteImport
+      parentRoute: typeof SuperAdminRoute
+    }
+    '/super-admin/utilisateurs': {
+      id: '/super-admin/utilisateurs'
+      path: '/utilisateurs'
+      fullPath: '/super-admin/utilisateurs'
+      preLoaderRoute: typeof SuperAdminUtilisateursRouteImport
+      parentRoute: typeof SuperAdminRoute
     }
     '/proprietaire/materiels/': {
       id: '/proprietaire/materiels/'
@@ -366,15 +657,19 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminLocationsRoute: typeof AdminLocationsRoute
   AdminMaterielsRoute: typeof AdminMaterielsRoute
+  AdminReclamationsRoute: typeof AdminReclamationsRoute
   AdminUtilisateursRoute: typeof AdminUtilisateursRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCategoriesRoute: AdminCategoriesRoute,
   AdminLocationsRoute: AdminLocationsRoute,
   AdminMaterielsRoute: AdminMaterielsRoute,
+  AdminReclamationsRoute: AdminReclamationsRoute,
   AdminUtilisateursRoute: AdminUtilisateursRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -401,15 +696,45 @@ const ProprietaireRouteWithChildren = ProprietaireRoute._addFileChildren(
   ProprietaireRouteChildren,
 )
 
+interface SuperAdminRouteChildren {
+  SuperAdminAdministrateursRoute: typeof SuperAdminAdministrateursRoute
+  SuperAdminComptabiliteRoute: typeof SuperAdminComptabiliteRoute
+  SuperAdminConnexionRoute: typeof SuperAdminConnexionRoute
+  SuperAdminCorbeilleRoute: typeof SuperAdminCorbeilleRoute
+  SuperAdminJournalRoute: typeof SuperAdminJournalRoute
+  SuperAdminUtilisateursRoute: typeof SuperAdminUtilisateursRoute
+  SuperAdminIndexRoute: typeof SuperAdminIndexRoute
+}
+
+const SuperAdminRouteChildren: SuperAdminRouteChildren = {
+  SuperAdminAdministrateursRoute: SuperAdminAdministrateursRoute,
+  SuperAdminComptabiliteRoute: SuperAdminComptabiliteRoute,
+  SuperAdminConnexionRoute: SuperAdminConnexionRoute,
+  SuperAdminCorbeilleRoute: SuperAdminCorbeilleRoute,
+  SuperAdminJournalRoute: SuperAdminJournalRoute,
+  SuperAdminUtilisateursRoute: SuperAdminUtilisateursRoute,
+  SuperAdminIndexRoute: SuperAdminIndexRoute,
+}
+
+const SuperAdminRouteWithChildren = SuperAdminRoute._addFileChildren(
+  SuperAdminRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  CompteBloqueRoute: CompteBloqueRoute,
   ConnexionRoute: ConnexionRoute,
   InscriptionRoute: InscriptionRoute,
   MesLocationsRoute: MesLocationsRoute,
+  MotDePasseOublieRoute: MotDePasseOublieRoute,
   ProfilRoute: ProfilRoute,
   ProprietaireRoute: ProprietaireRouteWithChildren,
+  SuperAdminRoute: SuperAdminRouteWithChildren,
+  VerificationEmailRoute: VerificationEmailRoute,
   MaterielsIdRoute: MaterielsIdRoute,
+  MotDePasseCodeVerificationRoute: MotDePasseCodeVerificationRoute,
+  MotDePasseReinitialiserRoute: MotDePasseReinitialiserRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

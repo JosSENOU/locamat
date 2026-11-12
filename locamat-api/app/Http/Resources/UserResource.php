@@ -20,9 +20,13 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'role' => $this->role,
+            'role' => $this->primaryRole(),
+            'roles' => $this->roles->pluck('name')->values(),
             'telephone' => $this->telephone,
-            'photo' => $this->role === 'admin' ? null : $this->photo,
+            'ville' => $this->ville,
+            'quartier' => $this->quartier,
+            'adresse' => $this->adresse,
+            'photo' => $this->isAdministrator() ? null : $this->photo,
         ];
     }
 }

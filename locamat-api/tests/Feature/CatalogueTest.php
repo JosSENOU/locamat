@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
 use App\Models\Location;
 use App\Models\Materiel;
 use App\Models\User;
@@ -31,29 +32,206 @@ class CatalogueTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
+    public function test_public_categories_endpoint_lists_database_categories(): void
+    {
+        Category::factory()->create(['name' => 'Photo']);
+
+        $this->getJson('/api/categories')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Photo']);
+    }
+
+    public function test_catalogue_returns_only_the_single_photo_published_for_a_materiel(): void
+    {
+        $materiel = Materiel::factory()->create();
+        $materiel->photos()->create(['path' => 'materiels/unique.jpg', 'position' => 0]);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $materiel->id)
+            ->assertJsonPath('data.0.photo', 'materiels/unique.jpg')
+            ->assertJsonPath('data.0.photos', ['materiels/unique.jpg']);
+    }
+
+    public function test_catalogue_hides_material_until_overdue_units_are_returned(): void
+    {
+        $this->travelTo('2026-11-05 12:00:00');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $fullyReserved = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
+            'nom' => 'Tous les exemplaires empruntés',
+            'quantite' => 1,
+        ]);
+        Location::factory()->for($fullyReserved, 'materiel')->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-03',
+            'date_fin' => '2026-11-04',
+        ]);
+        $partiallyReserved = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
+            'nom' => 'Un exemplaire restant',
+            'quantite' => 2,
+        ]);
+        Location::factory()->for($partiallyReserved, 'materiel')->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-03',
+            'date_fin' => '2026-11-04',
+        ]);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $partiallyReserved->id)
+            ->assertJsonPath('data.0.quantite', 2)
+            ->assertJsonPath('data.0.quantite_disponible', 1);
+
+        $this->getJson("/api/materiels/{$fullyReserved->id}")
+            ->assertOk()
+            ->assertJsonPath('quantite_disponible', 0);
+
+        Location::query()
+            ->where('materiel_id', $fullyReserved->id)
+            ->update(['statut' => Location::STATUT_TERMINEE]);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.quantite_disponible', 1);
+    }
+
+    public function test_future_confirmed_rentals_reduce_catalogue_stock_immediately(): void
+    {
+        $this->travelTo('2026-11-05 12:00:00');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $locataire = User::factory()->create();
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
+            'quantite' => 3,
+        ]);
+        $demande = $this->actingAs($locataire)->postJson('/api/locations', [
+            'materiel_id' => $materiel->id,
+            'date_debut' => '2026-11-10',
+            'date_fin' => '2026-11-12',
+        ])->assertCreated();
+
+        $this->actingAs($proprietaire)
+            ->patchJson("/api/proprietaire/locations/{$demande->json('id')}/confirmer")
+            ->assertOk()
+            ->assertJsonPath('statut', Location::STATUT_CONFIRMEE);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.quantite', 3)
+            ->assertJsonPath('data.0.quantite_disponible', 2);
+
+        Location::factory()->for($materiel, 'materiel')->count(2)->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-20',
+            'date_fin' => '2026-11-22',
+        ]);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_catalogue_stock_is_restored_when_owner_confirms_the_return(): void
+    {
+        $this->travelTo('2026-11-05 12:00:00');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $locataire = User::factory()->create();
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
+            'quantite' => 3,
+        ]);
+        $demande = $this->actingAs($locataire)->postJson('/api/locations', [
+            'materiel_id' => $materiel->id,
+            'date_debut' => '2026-11-05',
+            'date_fin' => '2026-11-06',
+        ])->assertCreated();
+        $locationId = $demande->json('id');
+
+        $this->actingAs($proprietaire)
+            ->patchJson("/api/proprietaire/locations/{$locationId}/confirmer")
+            ->assertOk();
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('data.0.quantite_disponible', 2);
+
+        $this->travelTo('2026-11-07 12:00:00');
+        $this->actingAs($proprietaire)
+            ->patchJson("/api/proprietaire/locations/{$locationId}/terminer")
+            ->assertOk()
+            ->assertJsonPath('statut', Location::STATUT_TERMINEE);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('data.0.quantite', 3)
+            ->assertJsonPath('data.0.quantite_disponible', 3);
+
+        $this->getJson('/api/proprietaire/materiels')
+            ->assertOk()
+            ->assertJsonPath('0.quantite_disponible', 3);
+    }
+
+    public function test_owner_can_increase_stock_after_buying_another_unit(): void
+    {
+        $this->travelTo('2026-11-05 12:00:00');
+        $proprietaire = User::factory()->proprietaire()->create();
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
+            'quantite' => 3,
+        ]);
+        Location::factory()->for($materiel, 'materiel')->create([
+            'statut' => Location::STATUT_CONFIRMEE,
+            'date_debut' => '2026-11-05',
+            'date_fin' => '2026-11-06',
+        ]);
+
+        $this->actingAs($proprietaire)
+            ->putJson("/api/materiels/{$materiel->id}", [
+                'nom' => $materiel->nom,
+                'categorie' => $materiel->categorie->name,
+                'prix_journalier' => $materiel->prix_journalier,
+                'etat' => $materiel->etat,
+                'quantite' => 4,
+            ])
+            ->assertOk()
+            ->assertJsonPath('quantite', 4)
+            ->assertJsonPath('quantite_disponible', 3);
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('data.0.quantite', 4)
+            ->assertJsonPath('data.0.quantite_disponible', 3);
+    }
+
     public function test_catalogue_searches_name_and_description_and_applies_category_and_price_filters(): void
     {
         $proprietaire = User::factory()->proprietaire()->create();
-        Materiel::factory()->for($proprietaire, 'proprietaire')->create([
+        $photo = Category::factory()->create(['name' => 'photo']);
+        $video = Category::factory()->create(['name' => 'video']);
+        $materielAvecPhotos = Materiel::factory()->for($proprietaire, 'proprietaire')->create([
             'nom' => 'Boitier compact',
-            'categorie' => 'photo',
+            'categorie_id' => $photo->id,
             'description' => 'Appareil reflex professionnel',
             'prix_journalier' => '50.00',
         ]);
+        $materielAvecPhotos->photos()->createMany([
+            ['path' => 'materiels/face.jpg', 'position' => 0],
+            ['path' => 'materiels/profil.jpg', 'position' => 1],
+        ]);
         Materiel::factory()->for($proprietaire, 'proprietaire')->create([
             'nom' => 'Projecteur',
-            'categorie' => 'video',
+            'categorie_id' => $video->id,
             'description' => 'Boitier lumineux',
             'prix_journalier' => '75.00',
         ]);
         Materiel::factory()->for($proprietaire, 'proprietaire')->create([
             'nom' => 'Boitier ancien',
-            'categorie' => 'photo',
+            'categorie_id' => $photo->id,
             'prix_journalier' => '20.00',
         ]);
         Materiel::factory()->for($proprietaire, 'proprietaire')->create([
             'nom' => 'Boitier indisponible',
-            'categorie' => 'photo',
+            'categorie_id' => $photo->id,
             'prix_journalier' => '50.00',
             'disponible' => false,
         ]);
@@ -62,6 +240,9 @@ class CatalogueTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.nom', 'Boitier compact')
+            ->assertJsonPath('data.0.photo', 'materiels/face.jpg')
+            ->assertJsonPath('data.0.photos.0', 'materiels/face.jpg')
+            ->assertJsonPath('data.0.photos.1', 'materiels/profil.jpg')
             ->assertJsonPath('data.0.proprietaire.name', $proprietaire->name);
 
         $this->getJson('/api/materiels?q=reflex')
@@ -93,16 +274,26 @@ class CatalogueTest extends TestCase
             'photo' => 'profiles/proprietaire.jpg',
         ]);
         $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create();
+        $materiel->photos()->createMany([
+            ['path' => 'materiels/face.jpg', 'position' => 0],
+            ['path' => 'materiels/profil.jpg', 'position' => 1],
+            ['path' => 'materiels/dos.jpg', 'position' => 2],
+        ]);
 
         $this->getJson("/api/materiels/{$materiel->id}")
             ->assertOk()
             ->assertJsonPath('id', $materiel->id)
             ->assertJsonPath('proprietaire.name', $proprietaire->name)
             ->assertJsonPath('proprietaire.photo', 'profiles/proprietaire.jpg')
+            ->assertJsonPath('photos', [
+                'materiels/face.jpg',
+                'materiels/profil.jpg',
+                'materiels/dos.jpg',
+            ])
             ->assertJsonMissingPath('proprietaire.telephone');
     }
 
-    public function test_public_reserved_periods_only_include_confirmed_locations_ending_today_or_later(): void
+    public function test_public_reserved_periods_exclude_locations_already_returned(): void
     {
         $this->travelTo('2026-11-03 12:00:00');
         $materiel = Materiel::factory()->create();
@@ -117,7 +308,7 @@ class CatalogueTest extends TestCase
             'date_fin' => '2026-11-05',
         ]);
         Location::factory()->for($materiel, 'materiel')->create([
-            'statut' => Location::STATUT_CONFIRMEE,
+            'statut' => Location::STATUT_TERMINEE,
             'date_debut' => '2026-11-01',
             'date_fin' => '2026-11-02',
         ]);
@@ -129,10 +320,32 @@ class CatalogueTest extends TestCase
 
         $this->getJson("/api/materiels/{$materiel->id}/periodes-reservees")
             ->assertOk()
-            ->assertJsonCount(2)
+            ->assertJsonCount(1)
             ->assertExactJson([
-                ['date_debut' => '2026-11-01T00:00:00.000000Z', 'date_fin' => '2026-11-03T00:00:00.000000Z'],
-                ['date_debut' => '2026-11-04T00:00:00.000000Z', 'date_fin' => '2026-11-05T00:00:00.000000Z'],
+                ['date_debut' => '2026-11-03', 'date_fin' => '2026-11-05'],
             ]);
+    }
+
+    public function test_materiel_exposes_the_public_localisation_of_its_owner_but_not_the_precise_address(): void
+    {
+        $proprietaire = User::factory()->proprietaire()->create([
+            'telephone' => '+22997000000',
+            'ville' => 'Cotonou',
+            'quartier' => 'Haie Vive',
+            'adresse' => 'Derrière la pharmacie',
+        ]);
+        $materiel = Materiel::factory()->for($proprietaire, 'proprietaire')->create();
+
+        $this->getJson("/api/materiels/{$materiel->id}")
+            ->assertOk()
+            ->assertJsonPath('proprietaire.ville', 'Cotonou')
+            ->assertJsonPath('proprietaire.quartier', 'Haie Vive')
+            ->assertJsonMissingPath('proprietaire.adresse')
+            ->assertJsonMissingPath('proprietaire.telephone');
+
+        $this->getJson('/api/materiels')
+            ->assertOk()
+            ->assertJsonPath('data.0.proprietaire.ville', 'Cotonou')
+            ->assertJsonMissingPath('data.0.proprietaire.adresse');
     }
 }

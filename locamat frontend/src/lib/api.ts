@@ -24,11 +24,13 @@ export type FieldErrors = Record<string, string[]>;
 export class ApiError extends Error {
   status: number;
   errors: FieldErrors;
-  constructor(status: number, message: string, errors: FieldErrors = {}) {
+  code?: string;
+  constructor(status: number, message: string, errors: FieldErrors = {}, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errors = errors;
+    this.code = code;
   }
   get hasFieldErrors() {
     return Object.keys(this.errors).length > 0;
@@ -62,6 +64,7 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 
 interface ErrorBody {
   message?: string;
+  code?: string;
   errors?: FieldErrors | unknown[];
 }
 
@@ -122,7 +125,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
         : data.message ||
           DEFAULT_MESSAGES[res.status] ||
           ((res.status >= 500 ? DEFAULT_MESSAGES[500] : undefined) ?? "Une erreur est survenue.");
-    throw new ApiError(res.status, message, errors);
+    throw new ApiError(res.status, message, errors, data.code);
   }
 
   return json as T;

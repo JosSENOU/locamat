@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Search, ShieldCheck, Users } from "lucide-react";
+import {
+  LockKeyhole,
+  MapPin,
+  Pencil,
+  Search,
+  ShieldCheck,
+  Trash2,
+  Unlock,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useAdminUsers, useUpdateAdminUserRole, useUpdateAdminUserStatus } from "@/hooks/use-admin";
+import { useAdminUsers, useUnlockAdminUser, useUpdateAdminUserStatus } from "@/hooks/use-admin";
 import { useAuth } from "@/hooks/use-auth";
+import { useDeleteUser } from "@/hooks/use-super-admin";
 import { errorMessage } from "@/lib/api";
 import { seo } from "@/lib/seo";
-import type { AdminUser, Role } from "@/types/api";
+import type { AccountRole, AdminUser, Role } from "@/types/api";
 import { EmptyState, ErrorState, PageHeader } from "@/components/States";
+import { AdminProfilDialog } from "@/components/AdminProfilDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PaginationBar } from "@/components/PaginationBar";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
@@ -27,10 +39,11 @@ type UserSearch = { q?: string; role?: Role; is_active?: "0" | "1"; page?: numbe
 type UserRoleFilter = Role | "tous";
 const ROLES = ["locataire", "proprietaire", "admin"] as const satisfies readonly Role[];
 
-const ROLE_LABELS: Record<Role, string> = {
+const ROLE_LABELS: Record<AccountRole, string> = {
   locataire: "Locataire",
   proprietaire: "Propriétaire",
   admin: "Administrateur",
+  super_admin: "Super-administrateur",
 };
 
 function isRole(value: string): value is Role {
@@ -55,8 +68,11 @@ function AdminUsersPage() {
   const { user: actor } = useAuth();
   const [query, setQuery] = useState(search.q ?? "");
   const users = useAdminUsers(search);
-  const updateRole = useUpdateAdminUserRole();
   const updateStatus = useUpdateAdminUserStatus();
+  const unlockUser = useUnlockAdminUser();
+  const [profilAccount, setProfilAccount] = useState<AdminUser | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<AdminUser | null>(null);
+  const deleteUser = useDeleteUser();
 
   useEffect(() => setQuery(search.q ?? ""), [search.q]);
 
@@ -72,16 +88,6 @@ function AdminUsersPage() {
   const filter = (patch: Partial<UserSearch>) =>
     void navigate({ search: (previous) => ({ ...previous, ...patch, page: undefined }) });
 
-  const changeRole = (account: AdminUser, role: Role) => {
-    updateRole.mutate(
-      { id: account.id, role },
-      {
-        onSuccess: () => toast.success(`Le rôle de ${account.name} a été mis à jour.`),
-        onError: (error) => toast.error(errorMessage(error)),
-      },
-    );
-  };
-
   const changeStatus = (account: AdminUser, is_active: boolean) => {
     updateStatus.mutate(
       { id: account.id, is_active },
@@ -95,6 +101,23 @@ function AdminUsersPage() {
         onError: (error) => toast.error(errorMessage(error)),
       },
     );
+  };
+
+  const unlockAccount = (account: AdminUser) => {
+    unlockUser.mutate(account.id, {
+      onSuccess: () => toast.success(`Le compte de ${account.name} a été débloqué.`),
+      onError: (error) => toast.error(errorMessage(error)),
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!accountToDelete) return;
+    deleteUser.mutate(accountToDelete.id, {
+      onSuccess: () =>
+        toast.success(`Le compte de ${accountToDelete.name} a été placé dans la corbeille.`),
+      onError: (error) => toast.error(errorMessage(error)),
+      onSettled: () => setAccountToDelete(null),
+    });
   };
 
   return (
@@ -182,6 +205,10 @@ function AdminUsersPage() {
           <ul className="space-y-3" aria-label="Comptes utilisateurs">
             {users.data.data.map((account) => {
               const isSelf = account.id === actor?.id;
+              const isOwner = (account.roles ?? [account.role]).includes("proprietaire");
+              const localisation = [account.quartier, account.ville]
+                .filter((part): part is string => !!part && part.trim() !== "")
+                .join(", ");
               return (
                 <li key={account.id}>
                   <article className="grid gap-4 rounded-xl border bg-card p-4 shadow-card sm:grid-cols-[minmax(0,1fr)_190px_180px] sm:items-center">
@@ -201,6 +228,12 @@ function AdminUsersPage() {
                               aria-label="Administrateur"
                             />
                           )}
+                          {account.is_locked && (
+                            <Badge variant="destructive">
+                              <LockKeyhole className="mr-1 size-3" aria-hidden />
+                              Bloqué
+                            </Badge>
+                          )}
                         </div>
                         <a
                           className="mt-1 block truncate text-sm text-muted-foreground hover:text-primary"
@@ -214,45 +247,91 @@ function AdminUsersPage() {
                             ? ` · ${account.materiels_count} matériel${account.materiels_count > 1 ? "s" : ""}`
                             : ""}
                         </p>
+                        {isOwner && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <span
+                              className={
+                                localisation
+                                  ? "inline-flex items-center gap-1 text-muted-foreground"
+                                  : "inline-flex items-center gap-1 font-semibold text-destructive"
+                              }
+                            >
+                              <MapPin className="size-3.5 shrink-0" aria-hidden />
+                              {localisation || "Localisation non renseignée"}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-xs"
+                              onClick={() => setProfilAccount(account)}
+                            >
+                              {localisation ? "Modifier" : "Ajouter la localisation"}
+                            </Button>
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="mt-1 h-auto p-0 text-xs"
+                          onClick={() => setProfilAccount(account)}
+                        >
+                          <Pencil aria-hidden /> Modifier le profil
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <p className="text-xs font-semibold text-muted-foreground">Rôle du compte</p>
-                      <Select
-                        value={account.role}
-                        onValueChange={(value) => {
-                          if (isRole(value)) changeRole(account, value);
-                        }}
-                        disabled={isSelf || updateRole.isPending}
-                      >
-                        <SelectTrigger aria-label={`Rôle de ${account.name}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {ROLE_LABELS[role]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Badge variant="secondary">{ROLE_LABELS[account.role] ?? account.role}</Badge>
                     </div>
-                    <label className="flex items-center justify-between gap-3 border-t pt-3 text-sm sm:border-0 sm:pt-0">
-                      <span>
-                        <span className="block font-semibold">
-                          {account.is_active ? "Compte actif" : "Désactivé"}
+                    <div className="border-t pt-3 text-sm sm:border-0 sm:pt-0">
+                      <label className="flex items-center justify-between gap-3">
+                        <span>
+                          <span className="block font-semibold">
+                            {account.is_active ? "Compte actif" : "Désactivé"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {account.is_locked
+                              ? "3 mots de passe incorrects"
+                              : isSelf
+                                ? "Votre session est protégée"
+                                : "Les accès sont révoqués"}
+                          </span>
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {isSelf ? "Votre session est protégée" : "Les accès sont révoqués"}
-                        </span>
-                      </span>
-                      <Switch
-                        checked={account.is_active}
-                        onCheckedChange={(active) => changeStatus(account, active)}
-                        disabled={isSelf || updateStatus.isPending}
-                        aria-label={`${account.is_active ? "Désactiver" : "Réactiver"} le compte de ${account.name}`}
-                      />
-                    </label>
+                        <Switch
+                          checked={account.is_active}
+                          onCheckedChange={(active) => changeStatus(account, active)}
+                          disabled={isSelf || updateStatus.isPending}
+                          aria-label={`${account.is_active ? "Désactiver" : "Réactiver"} le compte de ${account.name}`}
+                        />
+                      </label>
+                      {account.is_locked && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => unlockAccount(account)}
+                          disabled={unlockUser.isPending}
+                        >
+                          <Unlock aria-hidden />
+                          Débloquer
+                        </Button>
+                      )}
+                      {!isSelf && account.role !== "admin" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 text-destructive hover:text-destructive"
+                          onClick={() => setAccountToDelete(account)}
+                        >
+                          <Trash2 aria-hidden />
+                          Supprimer
+                        </Button>
+                      )}
+                    </div>
                   </article>
                 </li>
               );
@@ -268,6 +347,21 @@ function AdminUsersPage() {
           />
         </>
       )}
+      <AdminProfilDialog account={profilAccount} onClose={() => setProfilAccount(null)} />
+      <ConfirmDialog
+        open={!!accountToDelete}
+        onOpenChange={(open) => !open && setAccountToDelete(null)}
+        title="Supprimer ce compte ?"
+        description={
+          accountToDelete
+            ? `${accountToDelete.name} et ses matériels seront placés dans la corbeille. L’historique des locations est conservé et le super-administrateur peut restaurer le compte.`
+            : undefined
+        }
+        confirmLabel="Placer dans la corbeille"
+        destructive
+        loading={deleteUser.isPending}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

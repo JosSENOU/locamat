@@ -11,8 +11,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { api, setUnauthorizedHandler, tokenStore } from "@/lib/api";
-import type { AuthResponse, User } from "@/types/api";
-import type { LoginValues, ProfileValues, RegisterValues } from "@/lib/schemas";
+import type { AuthResponse, RegistrationResponse, User } from "@/types/api";
+import type { BecomeOwnerValues, LoginValues, ProfileValues, RegisterValues } from "@/lib/schemas";
 import { FullPageLoader } from "@/components/FullPageLoader";
 
 type Status = "idle" | "loading" | "ready";
@@ -21,7 +21,10 @@ interface AuthContextValue {
   user: User | null;
   status: Status;
   login: (values: LoginValues) => Promise<User>;
-  register: (values: RegisterValues) => Promise<User>;
+  /** Connexion dédiée au super-administrateur (point d'entrée API distinct). */
+  loginSuperAdmin: (values: LoginValues) => Promise<User>;
+  register: (values: RegisterValues) => Promise<RegistrationResponse>;
+  becomeOwner: (values: BecomeOwnerValues) => Promise<User>;
   logout: () => Promise<void>;
   updateProfile: (
     values: ProfileValues,
@@ -62,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Veuillez vous reconnecter.",
       });
       const here = router.state.location.href;
+      if (here.startsWith("/super-admin")) {
+        void router.navigate({ to: "/super-admin/connexion", replace: true });
+        return;
+      }
       void router.navigate({
         to: "/connexion",
         search: here.startsWith("/connexion") ? {} : { redirect: here },
@@ -82,14 +89,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
-  const register = useCallback(
-    async (values: RegisterValues) => {
-      const body = { ...values, telephone: values.telephone || undefined };
-      const res = await api<AuthResponse>("/register", { method: "POST", body });
+  const loginSuperAdmin = useCallback(
+    async (values: LoginValues) => {
+      const res = await api<AuthResponse>("/super-admin/login", { method: "POST", body: values });
       tokenStore.set(res.token);
       queryClient.clear();
       setUser(res.user);
       return res.user;
+    },
+    [queryClient],
+  );
+
+  const register = useCallback(async (values: RegisterValues) => {
+    // Seul un propriétaire envoie une localisation ; les champs vides sont omis.
+    const { ville, quartier, adresse, ...rest } = values;
+    const body = {
+      ...rest,
+      telephone: values.telephone || undefined,
+      ...(values.role === "proprietaire"
+        ? { ville, quartier: quartier || undefined, adresse: adresse || undefined }
+        : {}),
+    };
+    return api<RegistrationResponse>("/register", { method: "POST", body });
+  }, []);
+
+  const becomeOwner = useCallback(
+    async (values: BecomeOwnerValues) => {
+      const u = await api<User>("/profile/become-owner", { method: "POST", body: values });
+      queryClient.clear();
+      setUser(u);
+      return u;
     },
     [queryClient],
   );
@@ -105,7 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStore.clear();
     setUser(null);
     toast.success("Vous êtes déconnecté.");
-    void router.navigate({ to: "/", replace: true });
+    const here = router.state.location.pathname;
+    void router.navigate({
+      to: here.startsWith("/super-admin") ? "/super-admin/connexion" : "/",
+      replace: true,
+    });
   }, [queryClient, router]);
 
   const updateProfile = useCallback(
@@ -116,13 +149,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         formData.set("_method", "PUT");
         formData.set("name", values.name);
         formData.set("telephone", values.telephone || "");
+        if (values.ville !== undefined) {
+          formData.set("ville", values.ville);
+          formData.set("quartier", values.quartier ?? "");
+          formData.set("adresse", values.adresse ?? "");
+        }
         if (photo) formData.set("photo", photo);
         if (removePhoto) formData.set("remove_photo", "1");
         u = await api<User>("/profile", { method: "POST", formData });
       } else {
         u = await api<User>("/profile", {
           method: "PUT",
-          body: { name: values.name, telephone: values.telephone || null },
+          body: {
+            name: values.name,
+            telephone: values.telephone || null,
+            ...(values.ville !== undefined
+              ? {
+                  ville: values.ville,
+                  quartier: values.quartier || null,
+                  adresse: values.adresse || null,
+                }
+              : {}),
+          },
         });
       }
       setUser(u);
@@ -132,8 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, status, login, register, logout, updateProfile }),
-    [user, status, login, register, logout, updateProfile],
+    () => ({ user, status, login, loginSuperAdmin, register, becomeOwner, logout, updateProfile }),
+    [user, status, login, loginSuperAdmin, register, becomeOwner, logout, updateProfile],
   );
 
   return (

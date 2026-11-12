@@ -15,7 +15,7 @@ class UpdateMaterielAvailabilityRequest extends FormRequest
         $materiel = $this->route('materiel');
 
         return $materiel instanceof Materiel
-            && $this->user()?->getAuthIdentifier() === $materiel->proprietaire_id;
+            && $this->user()?->getAuthIdentifier() === $materiel->user_id;
     }
 
     public function rules(): array

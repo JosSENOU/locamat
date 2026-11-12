@@ -3,8 +3,10 @@ import { Link } from "@tanstack/react-router";
 import { LogOut, Menu, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Logo } from "./Logo";
+import { NotificationBell } from "./NotificationBell";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { Button } from "./ui/button";
+import { userCanRent, userHasRole } from "@/lib/constants";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,28 +25,30 @@ interface NavLink {
 
 function useLinks(): NavLink[] {
   const { user } = useAuth();
-  if (user?.role === "proprietaire")
-    return [
-      { to: "/", label: "Catalogue", exact: true },
+  const links: NavLink[] = [{ to: "/", label: "Louer du matériel", exact: true }];
+
+  if (userHasRole(user, "proprietaire")) {
+    links.push(
       { to: "/proprietaire", label: "Tableau de bord", exact: true },
       { to: "/proprietaire/materiels", label: "Mes matériels" },
       { to: "/proprietaire/demandes", label: "Demandes" },
-    ];
-  if (user?.role === "locataire")
-    return [
-      { to: "/", label: "Catalogue", exact: true },
-      { to: "/mes-locations", label: "Mes locations" },
-    ];
-  if (user?.role === "admin")
-    return [
-      { to: "/", label: "Catalogue", exact: true },
-      { to: "/admin", label: "Administration" },
-    ];
-  return [{ to: "/", label: "Catalogue", exact: true }];
+    );
+  }
+  if (userCanRent(user)) {
+    links.push({ to: "/mes-locations", label: "Mes locations" });
+  }
+  if (userHasRole(user, "admin")) {
+    links.push({ to: "/admin", label: "Administration" });
+  }
+  if (userHasRole(user, "super_admin")) {
+    links.push({ to: "/super-admin", label: "Super-administration" });
+  }
+
+  return links;
 }
 
 const linkCls =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
+  "rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary";
 const activeCls = "!text-primary bg-primary-soft";
 
 export function Navbar() {
@@ -53,8 +57,8 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
-      <div className="container-page flex h-16 items-center gap-4">
+    <header className="sticky top-0 z-40 border-b border-primary/10 bg-background/95 shadow-sm backdrop-blur-xl">
+      <div className="container-page flex h-[4.5rem] items-center gap-3 sm:gap-4">
         <Link
           to="/"
           aria-label="LocaMat, accueil"
@@ -63,7 +67,10 @@ export function Navbar() {
           <Logo />
         </Link>
 
-        <nav aria-label="Navigation principale" className="ml-4 hidden items-center gap-1 md:flex">
+        <nav
+          aria-label="Navigation principale"
+          className="ml-2 hidden items-center gap-0.5 xl:flex"
+        >
           {links.map((l) => (
             <Link
               key={l.to}
@@ -78,6 +85,7 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {user && (userHasRole(user, "proprietaire") || userCanRent(user)) && <NotificationBell />}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -105,19 +113,21 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="hidden items-center gap-2 sm:flex">
+            <div className="hidden items-center gap-2 xl:flex">
               <Button variant="ghost" asChild>
                 <Link to="/connexion">Connexion</Link>
               </Button>
               <Button asChild>
-                <Link to="/inscription">Créer un compte</Link>
+                <Link to="/inscription" search={{ role: "locataire" }}>
+                  M'inscrire pour louer
+                </Link>
               </Button>
             </div>
           )}
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Ouvrir le menu">
+              <Button variant="ghost" size="icon" className="xl:hidden" aria-label="Ouvrir le menu">
                 <Menu />
               </Button>
             </SheetTrigger>
@@ -146,7 +156,9 @@ export function Navbar() {
                       <Link to="/connexion">Connexion</Link>
                     </Button>
                     <Button asChild onClick={() => setOpen(false)}>
-                      <Link to="/inscription">Créer un compte</Link>
+                      <Link to="/inscription" search={{ role: "locataire" }}>
+                        M'inscrire pour louer
+                      </Link>
                     </Button>
                   </div>
                 )}

@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,10 +18,16 @@ class AdminUserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'role' => $this->role,
+            'role' => $this->primaryRole(),
+            'roles' => $this->roles->pluck('name')->values(),
             'telephone' => $this->telephone,
-            'photo' => $this->role === User::ROLE_ADMIN ? null : $this->photo,
+            'ville' => $this->ville,
+            'quartier' => $this->quartier,
+            'adresse' => $this->adresse,
+            'photo' => $this->isAdministrator() ? null : $this->photo,
             'is_active' => $this->is_active,
+            'is_locked' => $this->login_locked_at !== null
+                && $this->login_locked_at->copy()->addHours(12)->isFuture(),
             'materiels_count' => $this->whenCounted('materiels'),
             'created_at' => $this->created_at,
         ];

@@ -1,8 +1,12 @@
 import type {
+  UtilisateursParams,
+  AdministrateursParams,
   AdminLocationsParams,
   AdminMaterielsParams,
   AdminUsersParams,
   CatalogueParams,
+  CorbeilleParams,
+  JournalParams,
   Statut,
 } from "@/types/api";
 
@@ -11,16 +15,30 @@ export const queryKeys = {
   materiels: ["materiels"] as const,
   catalogue: (p: CatalogueParams) => ["materiels", "catalogue", p] as const,
   materiel: (id: number) => ["materiels", "detail", id] as const,
+  categories: ["categories"] as const,
   periodes: (id: number) => ["materiels", "periodes", id] as const,
   ownMateriels: ["proprietaire", "materiels"] as const,
   demandesAll: ["proprietaire", "demandes"] as const,
-  demandes: (statut: Statut | undefined, page: number) =>
-    ["proprietaire", "demandes", statut ?? "toutes", page] as const,
+  demandes: (statut: Statut | undefined, page: number, materielId?: number) =>
+    ["proprietaire", "demandes", statut ?? "toutes", page, materielId ?? "tous"] as const,
   stats: ["proprietaire", "stats"] as const,
   mesLocations: ["locataire", "locations"] as const,
+  mesReclamations: ["locataire", "reclamations"] as const,
+  notifications: ["notifications"] as const,
+  notificationsList: ["notifications", "list"] as const,
+  notificationsUnread: ["notifications", "unread"] as const,
   admin: ["admin"] as const,
   adminStats: ["admin", "stats"] as const,
+  adminCategories: ["admin", "categories"] as const,
   adminUsers: (p: AdminUsersParams) => ["admin", "utilisateurs", p] as const,
   adminMateriels: (p: AdminMaterielsParams) => ["admin", "materiels", p] as const,
   adminLocations: (p: AdminLocationsParams) => ["admin", "locations", p] as const,
+  adminReclamations: (page: number) => ["admin", "reclamations", page] as const,
+  superAdmin: ["super-admin"] as const,
+  superAdminApercu: ["super-admin", "apercu"] as const,
+  superAdminJournal: (p: JournalParams) => ["super-admin", "journal", p] as const,
+  superAdminUtilisateurs: (p: UtilisateursParams) => ["super-admin", "utilisateurs", p] as const,
+  superAdminAdministrateurs: (p: AdministrateursParams) =>
+    ["super-admin", "administrateurs", p] as const,
+  superAdminCorbeille: (p: CorbeilleParams) => ["super-admin", "corbeille", p] as const,
 };

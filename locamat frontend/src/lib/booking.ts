@@ -4,18 +4,24 @@ import { toLocalDate } from "./format";
 
 export interface DayRange {
   from: Date;
-  to: Date;
+  to?: Date;
 }
 
 export function periodesToRanges(periodes: Periode[]): DayRange[] {
-  return periodes.map((p) => ({ from: toLocalDate(p.date_debut), to: toLocalDate(p.date_fin) }));
+  return periodes.map((p) => ({
+    from: toLocalDate(p.date_debut),
+    ...(p.date_fin ? { to: toLocalDate(p.date_fin) } : {}),
+  }));
 }
 
 /** True when [from, to] (inclusive) overlaps any booked period (inclusive bounds). */
 export function overlapsBooked(from: Date, to: Date, booked: DayRange[]): boolean {
   const a = startOfDay(from).getTime();
   const b = startOfDay(to).getTime();
-  return booked.some((r) => startOfDay(r.from).getTime() <= b && startOfDay(r.to).getTime() >= a);
+  return booked.some(
+    (r) =>
+      startOfDay(r.from).getTime() <= b && (r.to === undefined || startOfDay(r.to).getTime() >= a),
+  );
 }
 
 export function isBeforeToday(date: Date, today: Date = new Date()): boolean {
